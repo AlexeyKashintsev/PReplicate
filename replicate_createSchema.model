@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?><datamodel>
+  <parameters>
+    <parameter description="id операции" name="actionId" nullable="true" parameterMode="1" selectionForm="null" type="Number"/>
+    <parameter description="имя пользователя Platypus" name="platypusUser" nullable="true" parameterMode="1" selectionForm="null" type="String"/>
+    <parameter description="имя создаваемой схемы Oracle" name="schemaName" nullable="true" parameterMode="1" selectionForm="null" type="String"/>
+    <parameter description="" name="id" nullable="true" parameterMode="1" selectionForm="null" type="Number"/>
+  </parameters>
+  <parametersEntity entityHeight="200" entityIconified="false" entityLocationX="8" entityLocationY="7" entityWidth="150"/>
+  <entity Title="" entityHeight="301" entityIconified="false" entityId="139331136825227" entityLocationX="205" entityLocationY="3" entityWidth="340" tableAlias="t" tableName="replicate_actions" tableSchemaName=""/>
+</datamodel>

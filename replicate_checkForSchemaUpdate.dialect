@@ -1,0 +1,23 @@
+with
+schemas(sn) as (select usr_context from mtd_users where usr_context is not null)
+,tables(tn) as (select upper(tablename) from replicate_views)
+,views(sn, tn) as (select table_schema, upper(table_name) from information_schema.tables where table_schema in (select sn from schemas) and table_type = 'VIEW')
+,columns as (select tn,  string_agg(cn,', ') cn from 
+ (select upper(table_name) tn, column_name cn 
+  from information_schema.columns
+  where table_schema = current_schema() and upper(table_name) in (select tn from tables) 
+  order by 1, 2
+ )r group by tn)
+ 
+,viewcolumns as (select sn, tn,string_agg(cn,', ') cn from 
+ (select t1.table_schema sn, upper(t1.table_name) tn, t1.column_name cn 
+  from information_schema.columns t1 join views t2 on t1.table_schema = t2.sn and upper(t1.table_name) = t2.tn
+  order by 1, 2,3
+ )r group by sn,tn)
+
+select r.sn,r.tn, (case when vc.cn is null then 'Отсутствует' else 'Изменено' end) as res_type
+from (select * from schemas s, columns c) r left join viewcolumns vc on r.sn = vc.sn and r.tn = vc.tn
+where vc.cn is null or vc.cn <> r.cn
+union all
+select vc.sn,vc.tn,'Лишняя' from viewcolumns vc left join tables t on t.tn = vc.tn where t.tn is null
+order by 1,3,2

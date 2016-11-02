@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?><datamodel>
+  <parameters>
+    <parameter description="id операции" name="actionId" nullable="true" parameterMode="1" precision="0" scale="0" selectionForm="null" signed="true" size="0" type="3" typeName="DECIMAL"/>
+    <parameter description="имя пользователя Platypus" name="platypusUser" nullable="true" parameterMode="1" precision="0" scale="0" selectionForm="null" signed="true" size="100" type="12" typeName="VARCHAR"/>
+    <parameter description="имя схемы БД" name="schemaName" nullable="true" parameterMode="1" precision="0" scale="0" selectionForm="null" signed="true" size="100" type="12" typeName="VARCHAR"/>
+    <parameter description="имя последовательности" name="sequenceName" nullable="true" parameterMode="1" precision="0" scale="0" selectionForm="null" signed="true" size="100" type="12" typeName="VARCHAR"/>
+    <parameter description="" name="id" nullable="true" parameterMode="1" precision="0" scale="0" selectionForm="null" signed="true" size="0" type="2" typeName="NUMERIC"/>
+  </parameters>
+  <parametersEntity entityHeight="200" entityIconified="false" entityLocationX="8" entityLocationY="7" entityWidth="150"/>
+  <entity Title="" entityHeight="301" entityIconified="false" entityId="139331347545907" entityLocationX="246" entityLocationY="9" entityWidth="340" tableAlias="t" tableName="replicate_actions" tableSchemaName=""/>
+</datamodel>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?><datamodel>
+  <parameters>
+    <parameter description="" name="platypusUser" nullable="true" parameterMode="1" precision="0" scale="0" selectionForm="null" signed="true" size="0" type="12" typeName="VARCHAR"/>
+  </parameters>
+  <parametersEntity entityHeight="200" entityIconified="false" entityLocationX="8" entityLocationY="7" entityWidth="150"/>
+  <entity Title="Пользователи" entityHeight="301" entityIconified="false" entityId="139220375782338" entityLocationX="246" entityLocationY="9" entityWidth="340" tableAlias="t" tableName="mtd_users" tableSchemaName=""/>
+  <relation leftEntityId="-1" leftEntityParameterName="platypusUser" rightEntityFieldName="usr_name" rightEntityId="139220375782338"/>
+</datamodel>

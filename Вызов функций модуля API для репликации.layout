@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?><layout title="" view="view">
+  <ButtonGroup name="buttonGroup"/>
+  <AnchorsPane cursor="0" name="view" prefHeight="366px" prefWidth="871px"/>
+  <TabbedPane cursor="0" name="tabbedPane" parent="view" prefHeight="367px" prefWidth="865px" selectedComponent="panel">
+    <AnchorsPaneConstraints bottom="-4px" left="3px" right="3px" top="3px"/>
+  </TabbedPane>
+  <AnchorsPane cursor="0" name="panel" parent="tabbedPane" prefHeight="339px" prefWidth="860px">
+    <TabbedPaneConstraints tabTitle="Схема" tabToolTip=""/>
+  </AnchorsPane>
+  <Label cursor="0" name="label" parent="panel" prefHeight="24px" prefWidth="204px" text="Имя схемы">
+    <AnchorsPaneConstraints height="24px" left="12px" top="12px" width="204px"/>
+  </Label>
+  <TextField cursor="0" name="txtCreateSchema" parent="panel" prefHeight="24px" prefWidth="668px">
+    <AnchorsPaneConstraints height="24px" left="12px" right="180px" top="36px"/>
+  </TextField>
+  <Button cursor="0" name="btnCreateSchema" parent="panel" prefHeight="25px" prefWidth="150px" text="Создать схему">
+    <AnchorsPaneConstraints height="25px" right="20px" top="40px" width="150px"/>
+  </Button>
+  <Button cursor="0" name="btnDropSchema" parent="panel" prefHeight="25px" prefWidth="150px" text="Удалить схему">
+    <AnchorsPaneConstraints height="25px" right="11px" top="72px" width="150px"/>
+  </Button>
+  <ModelCombo cursor="0" displayField="context" displayList="dsSchemas" field="cursor.pSchema" name="comboDropSchema" parent="panel" prefHeight="23px" prefWidth="668px">
+    <AnchorsPaneConstraints height="23px" left="12px" right="180px" top="72px"/>
+  </ModelCombo>
+  <Button cursor="0" name="btnGenerateSchemaName" parent="panel" prefHeight="30px" prefWidth="140px" text="Сгенерировать">
+    <AnchorsPaneConstraints height="30px" right="30px" top="0px" width="140px"/>
+  </Button>
+  <AnchorsPane cursor="0" name="panel1" parent="tabbedPane" prefHeight="339px" prefWidth="860px" visible="false">
+    <TabbedPaneConstraints tabTitle="Представление" tabToolTip=""/>
+  </AnchorsPane>
+  <Label cursor="0" name="label1" parent="panel1" prefHeight="24px" prefWidth="180px" text="Имя схемы">
+    <AnchorsPaneConstraints height="24px" left="12px" top="24px" width="180px"/>
+  </Label>
+  <Label cursor="0" name="label2" parent="panel1" prefHeight="24px" prefWidth="168px" text="Имя представления">
+    <AnchorsPaneConstraints height="24px" left="12px" top="60px" width="168px"/>
+  </Label>
+  <Button cursor="0" name="btnCreateView" parent="panel1" prefHeight="25px" prefWidth="120px" text="Создать">
+    <AnchorsPaneConstraints bottom="19px" height="25px" left="12px" width="120px"/>
+  </Button>
+  <Button cursor="0" name="btnDropView" parent="panel1" prefHeight="25px" prefWidth="108px" text="Удалить">
+    <AnchorsPaneConstraints bottom="19px" height="25px" left="144px" width="108px"/>
+  </Button>
+  <ModelCombo cursor="0" displayField="context" displayList="dsViewSchemas" field="cursor.pViewSchema" name="comboViewSchema" parent="panel1" prefHeight="23px" prefWidth="692px">
+    <AnchorsPaneConstraints height="23px" left="156px" right="12px" top="24px"/>
+  </ModelCombo>
+  <ModelCombo cursor="0" data="dsViews" displayField="f2" displayList="dsViews" field="cursor.pView" name="comboView" parent="panel1" prefHeight="23px" prefWidth="692px">
+    <AnchorsPaneConstraints height="23px" left="156px" right="12px" top="60px"/>
+  </ModelCombo>
+  <AnchorsPane cursor="0" name="panel2" parent="tabbedPane" prefHeight="339px" prefWidth="860px" visible="false">
+    <TabbedPaneConstraints tabTitle="Последовательность" tabToolTip=""/>
+  </AnchorsPane>
+  <Label cursor="0" name="label3" parent="panel2" prefHeight="24px" prefWidth="180px" text="Имя схемы">
+    <AnchorsPaneConstraints height="24px" left="12px" top="24px" width="180px"/>
+  </Label>
+  <Label cursor="0" name="label4" parent="panel2" prefHeight="24px" prefWidth="180px" text="Имя последовательности">
+    <AnchorsPaneConstraints height="24px" left="12px" top="60px" width="180px"/>
+  </Label>
+  <Button cursor="0" name="btnCreateSequence" parent="panel2" prefHeight="24px" prefWidth="132px" text="Создать">
+    <AnchorsPaneConstraints bottom="20px" height="24px" left="12px" width="132px"/>
+  </Button>
+  <Button cursor="0" name="btnDropSequence" parent="panel2" prefHeight="24px" prefWidth="120px" text="Удалить">
+    <AnchorsPaneConstraints bottom="20px" height="24px" left="168px" width="120px"/>
+  </Button>
+  <ModelCombo cursor="0" displayField="context" displayList="dsSequencesSchema" field="cursor.pSequenceSchema" name="comboSequenceSchema" parent="panel2" prefHeight="23px" prefWidth="632px">
+    <AnchorsPaneConstraints height="23px" left="216px" right="12px" top="24px"/>
+  </ModelCombo>
+  <ModelCombo cursor="0" displayField="sequencename" displayList="dsSequences" field="cursor.pSequence" name="comboSequence" parent="panel2" prefHeight="23px" prefWidth="632px">
+    <AnchorsPaneConstraints height="23px" left="216px" right="12px" top="60px"/>
+  </ModelCombo>
+  <AnchorsPane cursor="0" name="panel3" parent="tabbedPane" prefHeight="339px" prefWidth="860px" visible="false">
+    <TabbedPaneConstraints tabTitle="Добавить описание представления" tabToolTip=""/>
+  </AnchorsPane>
+  <Label cursor="0" name="label5" parent="panel3" prefHeight="24px" prefWidth="168px" text="Имя таблицы">
+    <AnchorsPaneConstraints height="24px" left="24px" top="24px" width="168px"/>
+  </Label>
+  <TextField cursor="0" name="txtAddDefine" parent="panel3" prefHeight="23px" prefWidth="644px">
+    <AnchorsPaneConstraints height="23px" left="204px" right="12px" top="24px"/>
+  </TextField>
+  <Label cursor="0" name="label6" parent="panel3" prefHeight="24px" prefWidth="132px" text="Тип представления">
+    <AnchorsPaneConstraints height="24px" left="24px" top="72px" width="132px"/>
+  </Label>
+  <RadioButton buttonGroup="buttonGroup" cursor="0" name="rbAllR" parent="panel3" prefHeight="22px" prefWidth="644px" selected="true" text="только чтение по всем записям">
+    <AnchorsPaneConstraints height="22px" left="204px" right="12px" top="72px"/>
+  </RadioButton>
+  <RadioButton buttonGroup="buttonGroup" cursor="0" name="rbAllRW" parent="panel3" prefHeight="22px" prefWidth="644px" text="чтение/запись по всем записям">
+    <AnchorsPaneConstraints height="22px" left="204px" right="12px" top="96px"/>
+  </RadioButton>
+  <RadioButton buttonGroup="buttonGroup" cursor="0" name="rbOwnerRW" parent="panel3" prefHeight="22px" prefWidth="644px" text="чтение/запись только по своим записям">
+    <AnchorsPaneConstraints height="22px" left="204px" right="12px" top="120px"/>
+  </RadioButton>
+  <CheckBox cursor="0" name="chkRecreateAll" parent="panel3" prefHeight="22px" prefWidth="456px" text="пересоздать представление у всех существующих пользователей">
+    <AnchorsPaneConstraints height="22px" left="24px" top="168px" width="456px"/>
+  </CheckBox>
+  <Button cursor="0" name="btnAddDefine" parent="panel3" prefHeight="25px" prefWidth="264px" text="Добавить/заменить описание">
+    <AnchorsPaneConstraints bottom="18px" height="25px" left="12px" width="264px"/>
+  </Button>
+  <Button cursor="0" name="button" parent="panel3" prefHeight="30px" prefWidth="100px" text="button">
+    <AnchorsPaneConstraints bottom="19px" height="30px" left="470px" width="100px"/>
+  </Button>
+  <AnchorsPane cursor="0" name="panel4" parent="tabbedPane" prefHeight="339px" prefWidth="860px" visible="false">
+    <TabbedPaneConstraints tabTitle="Удалить описание представления" tabToolTip=""/>
+  </AnchorsPane>
+  <Label cursor="0" name="label7" parent="panel4" prefHeight="24px" prefWidth="192px" text="Описание к представлению">
+    <AnchorsPaneConstraints height="24px" left="12px" top="24px" width="192px"/>
+  </Label>
+  <CheckBox cursor="0" name="chkRemoveAll" parent="panel4" prefHeight="22px" prefWidth="444px" text="удалить представление у всех существующих пользователей">
+    <AnchorsPaneConstraints height="22px" left="12px" top="72px" width="444px"/>
+  </CheckBox>
+  <Button cursor="0" name="btnRemoveDefine" parent="panel4" prefHeight="25px" prefWidth="336px" text="Удалить описание">
+    <AnchorsPaneConstraints bottom="18px" height="25px" left="12px" width="336px"/>
+  </Button>
+  <ModelCombo cursor="0" displayField="f2" displayList="dsRemoveDefine" field="cursor.pRemoveDefine" name="comboRemoveDefine" parent="panel4" prefHeight="23px" prefWidth="608px">
+    <AnchorsPaneConstraints height="23px" left="240px" right="12px" top="24px"/>
+  </ModelCombo>
+</layout>

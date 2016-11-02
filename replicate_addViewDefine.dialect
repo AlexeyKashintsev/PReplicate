@@ -1,0 +1,5 @@
+update replicate_actions t set error_code = 
+(Select replicate_addViewDefine(:platypusUser, :tableName, (:viewType :: integer), (:needToRecreateView:: integer), (:actionId :: integer)) AS actionResult 
+From (Select COUNT(*) 
+From DUMMYTABLE t1) t_addViewDefine
+) where id = :id

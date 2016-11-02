@@ -1,0 +1,5 @@
+update replicate_actions t set error_code = 
+(Select replicate_createView(:platypusUser, :schemaName, :tableName, (:actionId :: integer)) AS actionResult 
+From (Select COUNT(*) 
+From dummytable t1) t_createView
+) where id = :id

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?><datamodel>
+  <parameters>
+    <parameter description="" name="pSchema" nullable="true" parameterMode="1" precision="1" scale="0" selectionForm="null" signed="true" size="100" type="12" typeName="VARCHAR"/>
+    <parameter description="" name="pViewSchema" nullable="true" parameterMode="1" precision="0" scale="0" selectionForm="null" signed="true" size="100" type="12" typeName="VARCHAR"/>
+    <parameter description="" name="pView" nullable="true" parameterMode="1" precision="0" scale="0" selectionForm="null" signed="true" size="30" type="12" typeName="VARCHAR"/>
+    <parameter description="" name="pSequenceSchema" nullable="true" parameterMode="1" precision="0" scale="0" selectionForm="null" signed="true" size="100" type="12" typeName="VARCHAR"/>
+    <parameter description="" name="pSequence" nullable="true" parameterMode="1" precision="0" scale="0" selectionForm="null" signed="true" size="100" type="12" typeName="VARCHAR"/>
+    <parameter description="" name="pRemoveDefine" nullable="true" parameterMode="1" precision="0" scale="0" selectionForm="null" signed="true" size="100" type="12" typeName="VARCHAR"/>
+  </parameters>
+  <parametersEntity entityHeight="200" entityIconified="false" entityLocationX="12" entityLocationY="12" entityWidth="150"/>
+  <entity Name="dsRemoveDefine" Title="список заданных view" entityHeight="200" entityIconified="false" entityId="139228286190536" entityLocationX="29" entityLocationY="689" entityWidth="150" queryId="135780931934378" tableName="" tableSchemaName=""/>
+  <entity Name="dsSchemas" Title="список схем БД" entityHeight="200" entityIconified="false" entityId="139227762969453" entityLocationX="185" entityLocationY="14" entityWidth="150" queryId="135780635867102" tableName="" tableSchemaName=""/>
+  <entity Name="dsViews" Title="список заданных view" entityHeight="200" entityIconified="false" entityId="139228117849939" entityLocationX="182" entityLocationY="232" entityWidth="150" queryId="135780931934378" tableName="" tableSchemaName=""/>
+  <entity Name="dsSequences" Title="список заданных последовательностей" entityHeight="200" entityIconified="false" entityId="139228245506216" entityLocationX="181" entityLocationY="448" entityWidth="150" queryId="135791192346848" tableName="" tableSchemaName=""/>
+  <entity Name="dsViewSchemas" Title="список схем БД" entityHeight="200" entityIconified="false" entityId="139228028342205" entityLocationX="9" entityLocationY="232" entityWidth="150" queryId="135780635867102" tableName="" tableSchemaName=""/>
+  <entity Name="dsSequencesSchema" Title="список схем БД" entityHeight="200" entityIconified="false" entityId="139228244718599" entityLocationX="14" entityLocationY="447" entityWidth="150" queryId="135780635867102" tableName="" tableSchemaName=""/>
+</datamodel>
