@@ -1,0 +1,10 @@
+app/modules/*
+!app/modules/common.js
+private.properties
+watcher-config.json
+.babelrc
+/META-INF/
+/pub/
+/web/
+/WEB-INF/
+app/start.js
