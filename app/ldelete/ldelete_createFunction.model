@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?><datamodel>
+  <parameters>
+    <parameter description="" name="actionId" nullable="true" parameterMode="1" selectionForm="null" type="Number"/>
+    <parameter description="" name="tablename" nullable="true" parameterMode="1" selectionForm="null" type="String"/>
+    <parameter description="" name="schemaName" nullable="true" parameterMode="1" selectionForm="null" type="String"/>
+    <parameter description="" name="platypusUser" nullable="true" parameterMode="1" selectionForm="null" type="String"/>
+  </parameters>
+  <parametersEntity entityHeight="200" entityIconified="false" entityLocationX="8" entityLocationY="7" entityWidth="150"/>
+  <entity Title="" entityHeight="200" entityIconified="false" entityId="147887029251574" entityLocationX="170" entityLocationY="120" entityWidth="150" tableAlias="t1" tableName="dummytable" tableSchemaName=""/>
+</datamodel>

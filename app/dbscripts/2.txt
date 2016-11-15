@@ -1,0 +1,43 @@
+CREATE OR REPLACE FUNCTION replicate_getActionId() RETURNS numeric AS $$
+BEGIN
+  /***********************************************************************************************
+   * получить значение из последовательности для id записи лог-таблицы операций
+   **********************************************************************************************/
+    RETURN nextval('replicate_actions_seq');
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE OR REPLACE FUNCTION replicate_mainSchema() RETURNS varchar AS $$
+BEGIN
+   -- схема-владелец исходных таблиц
+   RETURN 'transcard';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION replicate_columnContext() RETURNS varchar AS $$
+BEGIN
+   -- имя поля для разделения пользователей
+   RETURN 'USR_CONTEXT';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION replicate_indexPostFix() RETURNS varchar AS $$
+BEGIN
+   -- имя индекса = tableName + indexPostFix
+   RETURN '_I';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION replicate_prefixSchemaName() RETURNS varchar AS $$
+BEGIN
+   -- имя схем для генерации
+   RETURN 'tk'; 
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION replicate_generateSchemaName() RETURNS VARCHAR AS $$
+BEGIN
+    RETURN replicate_prefixSchemaName() || nextval('REPLICATE_SCHEMASNAMES_SEQ');
+END;
+$$ LANGUAGE plpgsql;

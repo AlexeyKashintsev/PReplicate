@@ -1,0 +1,836 @@
+CREATE OR REPLACE FUNCTION replicate_createSchema(platypusUserName in varchar,schemaName in varchar, actionCode in numeric default null) RETURNS numeric AS $$
+/********************************************************************
+ *   создать схему + дать права на таблицы + создать view и sequence
+ *
+ *   platypusUserName - имя пользователя Platypus (используется только для логгирования)
+ *   schemaName       - имя схемы для создания
+ *   
+ * НЕОБЯЗАТЕЛЬНЫЕ ПАРАМЕТРЫ (рекомендуется не указывать при вызове) :
+ *   actionCode - код операции (для логгирования). При вызове ВСЕГДА задавать = NULL !!!
+ *
+ * результат выполнения:
+ *    0 - ошибок нет
+ *   >0 - кол-во ошибочных sql-команд
+ *   -1 - ошибок нет, но операция, возможно, выполнена неполностью
+ ********************************************************************/
+DECLARE
+   sqlLine varchar(4000);
+   cntError integer default 0;
+   actionId integer;
+   sqlId integer;
+   functionName varchar(40) default 'createSchema()';
+   res integer;
+   success boolean default false;
+BEGIN
+   -- log операций
+   if (actionCode is null or actionCode = 0) then
+      actionId := nextval('replicate_actions_seq');  
+      INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, platypusUserName, functionName);
+   else
+      actionId := actionCode;
+      if (not exists(select 1 from replicate_actions t1 where t1.id = actionCode)) then
+         INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, platypusUserName, functionName);
+         actionCode := null;
+      end if;      
+   end if;
+
+   sqlLine := 'CREATE SCHEMA ' || schemaName;
+
+   -- log sql-команд
+   sqlId := nextval('replicate_actions_sqls_seq');  
+   INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+
+   BEGIN
+      -- создать схему
+      EXECUTE sqlLine;
+      -- результат sql-команды
+      update replicate_actions_sqls set error_code = 0 where id = sqlId;
+      success := true;
+   EXCEPTION WHEN OTHERS THEN
+       cntError := cntError + 1;
+       -- результат sql-команды
+       update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+    END;
+   
+   if (cntError = 0) then
+     -- создать view
+     res := replicate_createView(platypusUserName,schemaName,'',actionId);
+     if (res >= 0) then
+        cntError := cntError + res;
+     else 
+        success := false;   
+     end if;   
+     -- создать sequences
+     if (exists(select 1 from replicate_sequences)) then
+        res := replicate_createSequence(platypusUserName,schemaName,'',actionId);
+        if (res >= 0) then
+           cntError := cntError + res;
+        else 
+           success := false;   
+        end if;   
+     end if;   
+   end if;
+   
+   -- результат операции (кол-во ошибок)
+   if (not success and cntError = 0) then
+      cntError := -1;
+   end if;
+   if (actionCode is null or actionCode = 0) then
+      update replicate_actions set error_code = cntError where id = actionId;
+   end if;   
+   
+   RETURN cntError;
+END;
+$$ LANGUAGE plpgsql;
+
+---------------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION replicate_createView(aPlatypusUserName in varchar,aSchemaName in varchar, aTableName in varchar, actionCode in numeric default null ) RETURNS numeric AS $$
+/********************************************************************
+ * создать view + дать права на таблицы
+ *
+ *   aPlatypusUserName - имя пользователя Platypus (используется только для логгирования)
+ *   aSchemaName       - имя схемы
+ *                       если schemaName = null или '', то view создаются у всех пользователей из MTD_USERS
+ *   aTableName        - имя таблицы из основной схемы транспорта
+ *                       если tableName = null или '', то view создаются по всем таблицам, заданных в REPLICATE_VIEWS
+ *
+ * НЕОБЯЗАТЕЛЬНЫЕ ПАРАМЕТРЫ (рекомендуется не указывать при вызове) :
+ *   actionCode - код операции (для логгирования). При вызове ВСЕГДА задавать = NULL !!!
+ *
+ * результат выполнения:
+ *    0 - ошибок нет
+ *   >0 - кол-во ошибочных sql-команд
+ *   -1 - ошибок нет, но операция, возможно, выполнена неполностью
+ ********************************************************************/
+DECLARE
+   sqlLine text;
+   sqlLine1 text;
+   sqlLine2 text;
+   sqlLine3 text;
+   left1 text;
+   left2 text;
+   left3 text;
+   right1 text;
+   right2 text;
+   right3 text;
+   dlm1 varchar(100);
+   dlm2 varchar(100);
+   cntError integer default 0;
+   actionId integer;
+   sqlId integer;
+   functionName varchar(40) default 'createView()';
+
+   currentSchema varchar(100);
+   currentTable replicate_views%ROWTYPE;
+   currentColumn record;
+
+   mainSchema varchar(200) default replicate_mainSchema();
+   usrContext varchar(200) default replicate_columnContext();
+
+   success boolean default false;
+
+   ldel_name text;
+   
+BEGIN
+   -- log операций
+   if (actionCode is null or actionCode = 0) then
+      actionId := nextval('replicate_actions_seq');  
+      INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+   else
+      actionId := actionCode;
+      if (not exists(select 1 from replicate_actions t1 where t1.id = actionCode)) then
+         INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+         actionCode := null;
+      end if;      
+   end if;
+
+   -- по всем имеющимся таблицам или по одной заданной
+   FOR currentTable in SELECT * FROM REPLICATE_VIEWS T WHERE aTableName is null OR aTableName = '' OR upper(aTableName) = upper(T.tablename) LOOP
+
+      ldel_name = '';
+      if exists(select 1 from information_schema.columns where table_schema = replicate_mainSchema() and table_name = currentTable.tablename and column_name = ldel_columnName()) then
+         ldel_name = ldel_columnName();
+      end if;       
+
+
+      -- read/write
+      if (currentTable.typ IN (1,2)) then   
+         dlm1 := ''; 
+         dlm2 := ''; 
+    
+         left1 := ''; 
+         left2 := ''; 
+         left3 := ''; 
+         right1 := '';
+         right2 := '';
+         right3 := '';
+         
+         -- по всем колонкам каждой таблицы
+         FOR currentColumn IN select c.column_name as name, k.ordinal_position as pk from information_schema.columns c left join information_schema.key_column_usage k on c.table_catalog = k.table_catalog and c.table_schema = k.table_schema and c.table_name = k.table_name and c.column_name = k.column_name and k.position_in_unique_constraint is null where lower(c.table_schema) = lower(mainSchema) and lower(c.table_name) = lower(currentTable.tableName) order by c.ordinal_position LOOP
+
+             left1 := left1 || dlm1 || currentColumn.name;
+          
+             -- позиция колонки в primary key
+             if (currentColumn.pk > 0) then
+                --left2 := left2 || dlm1 || currentColumn.name || ' = coalesce(NEW.' || currentColumn.name || ',OLD.' || currentColumn.name || ')';
+                   left2 := left2 || dlm1 || currentColumn.name || ' = NEW.' || currentColumn.name;
+                
+                right1 := right1 || dlm1 || 'NEW.' || currentColumn.name;
+                right2 := right2 || dlm2 || currentColumn.name || ' = OLD.' || currentColumn.name;
+                right3 := right3 || dlm2 || currentColumn.name || ' = OLD.' || currentColumn.name;
+                dlm2 := ' and ';
+             else
+                -- поле для изоляции пользователей
+                if (lower(currentColumn.name) = lower(usrContext)) then 
+                   right1 := right1 || dlm1 || ' current_schema() ';
+                   right2 := right2 || dlm2 || usrContext || ' = current_schema() ';
+                   right3 := right3 || dlm2 || usrContext || ' = current_schema() ';
+                   dlm2 := ' and ';
+                else
+                   left2 := left2 || dlm1 || currentColumn.name || ' = NEW.' || currentColumn.name;
+                   right1 := right1 || dlm1 || 'NEW.' || currentColumn.name;
+                end if;
+             end if;
+             dlm1 := ',';
+         END LOOP;  
+      END IF;   
+
+      -- по всем имеющимся схемам или по одной заданной
+      FOR currentSchema in SELECT DISTINCT USR_CONTEXT FROM MTD_USERS WHERE aSchemaName is null OR aSchemaName = '' UNION SELECT aSchemaName WHERE aSchemaName > '' LOOP
+	  currentSchema := lower(currentSchema);
+          -- создать view
+          sqlLine := 'CREATE OR REPLACE VIEW ' || currentSchema || '.' || currentTable.tableName || ' AS SELECT * FROM  ' || mainSchema || '.' || currentTable.tableName;
+          if (currentTable.typ = 2) then
+             sqlLine := sqlLine || ' WHERE ' || usrContext || ' = ''' || currentSchema || ''' ';
+             if (ldel_name <> '') then
+                sqlLine := sqlLine || ' AND ' || ldel_name || ' is null';   
+             end if;
+          else
+             if (ldel_name <> '') then
+                sqlLine := sqlLine || ' WHERE ' || ldel_name || ' is null';   
+             end if;
+          end if;
+          sqlId := nextval('replicate_actions_sqls_seq');  
+          INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+          BEGIN
+             EXECUTE sqlLine;
+             -- результат sql-команды
+             update replicate_actions_sqls set error_code = 0 where id = sqlId;
+          EXCEPTION WHEN OTHERS THEN
+             cntError := cntError + 1;
+             -- результат sql-команды
+             update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+          END;
+   
+          if (currentTable.typ IN (1,2)) then   
+             -- read/write
+             sqlLine1 := 'CREATE OR REPLACE RULE ' || currentTable.tableName || '_ins AS ON INSERT TO ' || currentSchema || '.' || currentTable.tableName || ' DO INSTEAD INSERT INTO '|| mainSchema || '.' || currentTable.tableName;
+             sqlLine2 := 'CREATE OR REPLACE RULE ' || currentTable.tableName || '_upd AS ON UPDATE TO ' || currentSchema || '.' || currentTable.tableName || ' DO INSTEAD UPDATE '|| mainSchema || '.' || currentTable.tableName;
+             sqlLine3 := 'CREATE OR REPLACE RULE ' || currentTable.tableName || '_del AS ON DELETE TO ' || currentSchema || '.' || currentTable.tableName || ' DO INSTEAD DELETE FROM '|| mainSchema || '.' || currentTable.tableName;
+
+             sqlLine1 := sqlLine1 || '(' || replace(left1,' current_schema() ', ' '''|| currentSchema || ''' ') || ') VALUES ('|| replace(right1,' current_schema() ', ' '''|| currentSchema || ''' ') || ')'; 
+             sqlLine2 := sqlLine2 || ' SET ' || replace(left2,' current_schema() ', ' '''|| currentSchema || ''' ') || ' WHERE '|| replace(right2,' current_schema() ', ' '''|| currentSchema || ''' '); 
+             sqlLine3 := sqlLine3 || ' WHERE '|| replace(right3,' current_schema() ', ' '''|| currentSchema || ''' '); 
+             
+             -- создать правило на insert
+             sqlId := nextval('replicate_actions_sqls_seq');  
+             INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, substr(sqlLine1,1,4000));
+             BEGIN
+                EXECUTE sqlLine1;
+                -- результат sql-команды
+                update replicate_actions_sqls set error_code = 0 where id = sqlId;
+             EXCEPTION WHEN OTHERS THEN
+                cntError := cntError + 1;
+                -- результат sql-команды
+                update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+             END;
+
+             -- создать правило на update
+             sqlId := nextval('replicate_actions_sqls_seq');  
+             INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, substr(sqlLine2,1,4000));
+             BEGIN
+                EXECUTE sqlLine2;
+                -- результат sql-команды
+                update replicate_actions_sqls set error_code = 0 where id = sqlId;
+             EXCEPTION WHEN OTHERS THEN
+                cntError := cntError + 1;
+                -- результат sql-команды
+                update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+             END;
+
+             -- создать правило на delete
+             sqlId := nextval('replicate_actions_sqls_seq');  
+             INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, substr(sqlLine3,1,4000));
+             BEGIN
+                EXECUTE sqlLine3;
+                -- результат sql-команды
+                update replicate_actions_sqls set error_code = 0 where id = sqlId;
+             EXCEPTION WHEN OTHERS THEN
+                cntError := cntError + 1;
+                -- результат sql-команды
+                update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+             END;
+          end if;
+          success := true;
+      END LOOP;
+   END LOOP;
+   
+   -- результат операции (кол-во ошибок)
+   if (not success and cntError = 0) then
+      cntError := -1;
+   end if;
+   if (actionCode is null or actionCode = 0) then
+      update replicate_actions set error_code = cntError where id = actionId;
+   end if;   
+   
+   RETURN cntError;
+END;
+$$ LANGUAGE plpgsql;
+
+------------------------------------------------------------------11
+
+
+CREATE OR REPLACE FUNCTION replicate_createSequence(aPlatypusUserName in varchar,aSchemaName in varchar, aSequenceName in varchar, actionCode in numeric default null ) RETURNS numeric AS $$
+/********************************************************************
+ * создать последоватльности
+ *
+ *   aPlatypusUserName - имя пользователя Platypus (используется только для логгирования)
+ *   aSchemaName       - имя схемы
+ *                       если schemaName = null или '', то view создаются у всех пользователей из MTD_USERS
+ *   aSequenceName     - имя последовательности
+ *                       если aSequenceName = null или '', то создаются все последовательности, заданные в REPLICATE_SEQUENCES
+ *
+ * НЕОБЯЗАТЕЛЬНЫЕ ПАРАМЕТРЫ (рекомендуется не указывать при вызове) :
+ *   actionCode - код операции (для логгирования). При вызове ВСЕГДА задавать = NULL !!!
+ *
+ * результат выполнения:
+ *    0 - ошибок нет
+ *   >0 - кол-во ошибочных sql-команд
+ *   -1 - ошибок нет, но операция, возможно, выполнена неполностью
+ ********************************************************************/
+DECLARE
+   sqlLine text;
+   cntError integer default 0;
+   actionId integer;
+   sqlId integer;
+   functionName varchar(40) default 'createSequence()';
+
+   currentSchema varchar(100);
+   currentSequence replicate_sequences%ROWTYPE;
+
+   mainSchema varchar(200) default replicate_mainSchema();
+   usrContext varchar(200) default replicate_columnContext();
+
+   success boolean default false;
+   
+BEGIN
+   -- log операций
+   if (actionCode is null or actionCode = 0) then
+      actionId := nextval('replicate_actions_seq');  
+      INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+   else
+      actionId := actionCode;
+      if (not exists(select 1 from replicate_actions t1 where t1.id = actionCode)) then
+         INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+         actionCode := null;
+      end if;      
+   end if;
+
+   -- по всем имеющимся последовательностям или по одной заданной
+   FOR currentSequence in SELECT * FROM REPLICATE_SEQUENCES T WHERE aSequenceName is null OR aSequenceName = '' OR upper(aSequenceName) = upper(T.sequencename) LOOP
+      -- по всем имеющимся схемам или по одной заданной
+      FOR currentSchema in SELECT DISTINCT USR_CONTEXT FROM MTD_USERS WHERE aSchemaName is null OR aSchemaName = '' UNION SELECT aSchemaName WHERE aSchemaName > '' LOOP
+	  currentSchema := lower(currentSchema);
+          -- создать последовательность
+          sqlLine := 'CREATE SEQUENCE ' || currentSchema || '.' || currentSequence.sequenceName;
+          sqlId := nextval('replicate_actions_sqls_seq');  
+          INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+          BEGIN
+             EXECUTE sqlLine;
+             -- результат sql-команды
+             update replicate_actions_sqls set error_code = 0 where id = sqlId;
+          EXCEPTION WHEN OTHERS THEN
+             cntError := cntError + 1;
+             -- результат sql-команды
+             update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+          END;
+          success := true;
+      END LOOP;
+   END LOOP;
+   
+   -- результат операции (кол-во ошибок)
+   if (not success and cntError = 0) then
+      cntError := -1;
+   end if;
+   if (actionCode is null or actionCode = 0) then
+      update replicate_actions set error_code = cntError where id = actionId;
+   end if;   
+   
+   RETURN cntError;
+END;
+$$ LANGUAGE plpgsql;
+
+------------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION replicate_dropSchema(platypusUserName in varchar,schemaName in varchar, actionCode in numeric default null) RETURNS numeric AS $$
+/********************************************************************
+ *   удалить схему со всеми объектами
+ *
+ *   platypusUserName - имя пользователя Platypus (используется только для логгирования)
+ *   schemaName       - имя схемы для создания
+ *   
+ * НЕОБЯЗАТЕЛЬНЫЕ ПАРАМЕТРЫ (рекомендуется не указывать при вызове) :
+ *   actionCode - код операции (для логгирования). При вызове ВСЕГДА задавать = NULL !!!
+ *
+ * результат выполнения:
+ *    0 - ошибок нет
+ *   >0 - кол-во ошибочных sql-команд
+ *   -1 - ошибок нет, но операция, возможно, выполнена неполностью
+ ********************************************************************/
+DECLARE
+   sqlLine varchar(4000);
+   cntError integer default 0;
+   actionId integer;
+   sqlId integer;
+   functionName varchar(40) default 'dropSchema()';
+
+   success boolean default false;
+BEGIN
+   -- log операций
+   if (actionCode is null or actionCode = 0) then
+      actionId := nextval('replicate_actions_seq');  
+      INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, platypusUserName, functionName);
+   else
+      actionId := actionCode;
+      if (not exists(select 1 from replicate_actions t1 where t1.id = actionCode)) then
+         INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, platypusUserName, functionName);
+         actionCode := null;
+      end if;      
+   end if;
+
+   sqlLine := 'DROP SCHEMA ' || schemaName || ' CASCADE';
+
+   -- log sql-команд
+   sqlId := nextval('replicate_actions_sqls_seq');  
+   INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+
+   BEGIN
+      -- создать схему
+      EXECUTE sqlLine;
+      -- результат sql-команды
+      update replicate_actions_sqls set error_code = 0 where id = sqlId;
+      success := true;
+   EXCEPTION WHEN OTHERS THEN
+       cntError := cntError + 1;
+       -- результат sql-команды
+       update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+    END;
+   
+   -- результат операции (кол-во ошибок)
+   if (not success and cntError = 0) then
+      cntError := -1;
+   end if;
+   if (actionCode is null or actionCode = 0) then
+      update replicate_actions set error_code = cntError where id = actionId;
+   end if;   
+   
+   RETURN cntError;
+END;
+$$ LANGUAGE plpgsql;
+
+
+--------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION replicate_dropView(aPlatypusUserName in varchar,aSchemaName in varchar, aTableName in varchar, actionCode in numeric default null) RETURNS numeric AS $$
+/********************************************************************
+ * удалить view
+ *
+ *   aPlatypusUserName - имя пользователя Platypus (используется только для логгирования)
+ *   aSchemaName       - имя схемы
+ *                       если schemaName = null или '', то view удаляются у всех пользователей из MTD_USERS
+ *   aTableName        - имя таблицы из основной схемы транспорта
+ *
+ * НЕОБЯЗАТЕЛЬНЫЕ ПАРАМЕТРЫ (рекомендуется не указывать при вызове) :
+ *   actionCode - код операции (для логгирования). При вызове ВСЕГДА задавать = NULL !!!
+ *
+ * результат выполнения:
+ *    0 - ошибок нет
+ *   >0 - кол-во ошибочных sql-команд
+ *   -1 - ошибок нет, но операция, возможно, выполнена неполностью
+ ********************************************************************/
+DECLARE
+   sqlLine text;
+   cntError integer default 0;
+   actionId integer;
+   sqlId integer;
+   functionName varchar(40) default 'dropView()';
+
+   currentSchema varchar(100);
+   currentTable replicate_views%ROWTYPE;
+
+   mainSchema varchar(200) default replicate_mainSchema();
+   usrContext varchar(200) default replicate_columnContext();
+
+   success boolean default false;
+   
+BEGIN
+   -- log операций
+   if (actionCode is null or actionCode = 0) then
+      actionId := nextval('replicate_actions_seq');  
+      INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+   else
+      actionId := actionCode;
+      if (not exists(select 1 from replicate_actions t1 where t1.id = actionCode)) then
+         INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+         actionCode := null;
+      end if;      
+   end if;
+
+   -- по всем имеющимся таблицам или по одной заданной
+   FOR currentTable in SELECT * FROM REPLICATE_VIEWS T WHERE aTableName is null OR aTableName = '' OR upper(aTableName) = upper(T.tablename) LOOP
+      -- по всем имеющимся схемам или по одной заданной
+      FOR currentSchema in SELECT DISTINCT USR_CONTEXT FROM MTD_USERS WHERE aSchemaName is null OR aSchemaName = '' UNION SELECT aSchemaName WHERE aSchemaName > '' LOOP
+	  currentSchema := lower(currentSchema);
+          -- удалить view
+          sqlLine := 'drop VIEW ' || currentSchema || '.' || currentTable.tableName;
+          sqlId := nextval('replicate_actions_sqls_seq');  
+          INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+          BEGIN
+             EXECUTE sqlLine;
+             -- результат sql-команды
+             update replicate_actions_sqls set error_code = 0 where id = sqlId;
+          EXCEPTION WHEN OTHERS THEN
+             cntError := cntError + 1;
+             -- результат sql-команды
+             update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+          END;
+          success := true;		
+      END LOOP;
+   END LOOP;
+   
+   -- результат операции (кол-во ошибок)
+   if (not success and cntError = 0) then
+      cntError := -1;
+   end if;
+   if (actionCode is null or actionCode = 0) then
+      update replicate_actions set error_code = cntError where id = actionId;
+   end if;   
+   
+   RETURN cntError;
+END;
+$$ LANGUAGE plpgsql;
+
+
+--------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION replicate_dropSequence(aPlatypusUserName in varchar,aSchemaName in varchar, aSequenceName in varchar, actionCode in numeric default null ) RETURNS numeric AS $$
+/********************************************************************
+ * удалить последовательности
+ *
+ *   aPlatypusUserName - имя пользователя Platypus (используется только для логгирования)
+ *   aSchemaName       - имя схемы
+ *                       если schemaName = null или '', то последоватьности удаляются у всех пользователей из MTD_USERS
+ *   aSequenceName     - имя последовательности
+ *
+ * НЕОБЯЗАТЕЛЬНЫЕ ПАРАМЕТРЫ (рекомендуется не указывать при вызове) :
+ *   actionCode - код операции (для логгирования). При вызове ВСЕГДА задавать = NULL !!!
+ *
+ * результат выполнения:
+ *    0 - ошибок нет
+ *   >0 - кол-во ошибочных sql-команд
+ *   -1 - ошибок нет, но операция, возможно, выполнена неполностью
+ ********************************************************************/
+DECLARE
+   sqlLine text;
+   cntError integer default 0;
+   actionId integer;
+   sqlId integer;
+   functionName varchar(40) default 'dropSequence()';
+
+   currentSchema varchar(100);
+   currentSequence replicate_sequences%ROWTYPE;
+
+   mainSchema varchar(200) default replicate_mainSchema();
+   usrContext varchar(200) default replicate_columnContext();
+   
+   success boolean default false;
+BEGIN
+   -- log операций
+   if (actionCode is null or actionCode = 0) then
+      actionId := nextval('replicate_actions_seq');  
+      INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+   else
+      actionId := actionCode;
+      if (not exists(select 1 from replicate_actions t1 where t1.id = actionCode)) then
+         INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+         actionCode := null;
+      end if;      
+   end if;
+
+   -- по всем имеющимся последовательностям или по одной заданной
+   FOR currentSequence in SELECT * FROM REPLICATE_SEQUENCES T WHERE aSequenceName is null OR aSequenceName = '' OR upper(aSequenceName) = upper(T.sequencename) LOOP
+      -- по всем имеющимся схемам или по одной заданной
+      FOR currentSchema in SELECT DISTINCT USR_CONTEXT FROM MTD_USERS WHERE aSchemaName is null OR aSchemaName = '' UNION SELECT aSchemaName WHERE aSchemaName > '' LOOP
+	  currentSchema := lower(currentSchema);
+          -- удалить последовательность
+          sqlLine := 'DROP SEQUENCE ' || currentSchema || '.' || currentSequence.sequenceName;
+          sqlId := nextval('replicate_actions_sqls_seq');  
+          INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+          BEGIN
+             EXECUTE sqlLine;
+             -- результат sql-команды
+             update replicate_actions_sqls set error_code = 0 where id = sqlId;
+          EXCEPTION WHEN OTHERS THEN
+             cntError := cntError + 1;
+             -- результат sql-команды
+             update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+          END;
+          success := true;
+      END LOOP;
+   END LOOP;
+   
+   -- результат операции (кол-во ошибок)
+   if (not success and cntError = 0) then
+      cntError := -1;
+   end if;
+if (actionCode is null or actionCode = 0) then
+      update replicate_actions set error_code = cntError where id = actionId;
+   end if;   
+   
+   RETURN cntError;
+END;
+$$ LANGUAGE plpgsql;
+
+---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION replicate_addViewDefine(aPlatypusUserName in varchar,aTableName in varchar, aTypeView in numeric, needToRecreateViews in numeric, actionCode in numeric default null ) RETURNS numeric AS $$
+/********************************************************************
+ *   создать описание для view + добавить (если необходимо) поле в таблицу для разделения по контексту и создать по нему индекс
+ *
+ *   aPlatypusUserName - имя пользователя Platypus
+ *   aTableName        - имя таблицы из основной схемы транспорта
+ *   aTypeView         - тип создаваемого представления
+ *                          accessViewFullR     (0) - Read only  по всем записям таблицы
+ *                          accessViewFullRW    (1) - Read/Write по всем записям таблицы
+ *                          accessViewOwnerRW   (2) - Read/Write по своим записям таблицы
+ *   needToRecreateViews - необходимость пересоздания view у всех существующих пользователей
+ *                          >0 - пересоздать, иначе не пересоздавать
+ * НЕОБЯЗАТЕЛЬНЫЕ ПАРАМЕТРЫ (рекомендуется не указывать при вызове) :
+ *   actionCode - код операции (для логгирования). При вызове ВСЕГДА задавать = NULL !!!
+ *
+ * результат выполнения:
+ *    0 - ошибок нет
+ *   >0 - кол-во ошибочных sql-команд
+ *   -1 - ошибок нет, но операция, возможно, выполнена неполностью
+ ********************************************************************/
+DECLARE
+   sqlLine text;
+   cntError integer default 0;
+   actionId integer;
+   sqlId integer;
+   functionName varchar(40) default 'addViewDefine()';
+
+   fullTableName  varchar(100);
+
+   mainSchema varchar(200) default replicate_mainSchema();
+   usrContext varchar(200) default replicate_columnContext();
+   indexPostFix varchar(30) default replicate_indexPostFix();
+
+   oldTypeView integer;
+   
+   -- тип доступа к данным
+   accessViewFullR   integer := 0;          -- Read only  по всем записям таблицы
+   accessViewFullRW  integer := 1;          -- Read/Write по всем записям таблицы
+   accessViewOwnerRW integer := 2;          -- Read/Write по своим записям таблицы
+
+   res integer;
+   success boolean default true;
+   
+BEGIN
+   -- log операций
+   if (actionCode is null or actionCode = 0) then
+      actionId := nextval('replicate_actions_seq');  
+      INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+   else
+      actionId := actionCode;
+      if (not exists(select 1 from replicate_actions t1 where t1.id = actionCode)) then
+         INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+         actionCode := null;
+      end if;      
+   end if;
+
+   -- проверить на наличие в описаниях 
+   select typ into oldTypeView from replicate_views where lower(tableName) = lower(aTableName);
+   if oldTypeView is not null then
+       if oldTypeView = accessViewOwnerRW and aTypeView <> accessViewOwnerRW then
+           res := replicate_removeViewDefine(aPlatypusUserName,aTableName,0,actionId);
+           if (res >= 0) then 
+              cntError := cntError + res;    
+           --else
+              --success := false;
+           end if;   
+       end if;
+   end if;
+
+   -- добавить описание
+   if exists(select 1 from replicate_views t1 where lower(t1.tableName) = lower(aTableName) ) then
+      update replicate_views set typ = aTypeView where lower(tableName) = lower(aTableName); 
+   else
+      insert into replicate_views(tableName,typ) values (aTableName, aTypeView);
+   end if;
+
+   if (aTypeView = accessViewOwnerRW) then
+        fullTableName := mainSchema || '.' || aTableName;
+
+        sqlId := nextval('replicate_actions_sqls_seq');  
+        sqlline := 'alter table ' || fullTableName || ' add ' || usrContext || ' varchar(30)';
+        INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+        BEGIN
+             EXECUTE sqlLine;
+             -- результат sql-команды
+             update replicate_actions_sqls set error_code = 0 where id = sqlId;
+        EXCEPTION WHEN OTHERS THEN
+             cntError := cntError + 1;
+             -- результат sql-команды
+             update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+        END;
+
+        sqlId := nextval('replicate_actions_sqls_seq');  
+        sqlline := 'create index ' || aTableName || indexPostFix || ' on '|| fullTableName || '(' || usrContext||')';
+        INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+        BEGIN
+             EXECUTE sqlLine;
+             -- результат sql-команды
+             update replicate_actions_sqls set error_code = 0 where id = sqlId;
+        EXCEPTION WHEN OTHERS THEN
+             cntError := cntError + 1;
+             -- результат sql-команды
+             update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+        END;
+
+        sqlId := nextval('replicate_actions_sqls_seq');  
+        sqlline := 'comment on column ' || fullTableName || '.' || usrContext || ' is ''Не трогать! Для изоляции данных.''';
+        INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+        BEGIN
+             EXECUTE sqlLine;
+             -- результат sql-команды
+             update replicate_actions_sqls set error_code = 0 where id = sqlId;
+        EXCEPTION WHEN OTHERS THEN
+             cntError := cntError + 1;
+             -- результат sql-команды
+             update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+        END;
+   end if;
+   if (needToRecreateViews > 0) then
+        res := replicate_createView(aPlatypusUserName,'',aTableName,actionId);
+        if (res >= 0) then
+           cntError := cntError + res;
+        else
+           success := false;
+        end if;      
+   end if;
+
+   -- результат операции (кол-во ошибок)
+   if (not success and cntError = 0) then
+      cntError := -1;
+   end if;
+   if (actionCode is null or actionCode = 0) then
+      update replicate_actions set error_code = cntError where id = actionId;
+   end if;   
+   
+   RETURN cntError;
+END;
+$$ LANGUAGE plpgsql;
+
+
+------------------------------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION replicate_removeViewDefine(platypusUserName in varchar,aTableName in varchar, needToDropViews in double precision, actionCode in double precision default null ) RETURNS numeric AS $$
+/********************************************************************
+ *   удалить описание для view + удалить (если необходимо) поле таблицы для разделения по контексту
+ *
+ *   platypusUserName - имя пользователя Platypus
+ *   aTableName       - имя таблицы из основной схемы транспорта
+ *   needToDropViews  - необходимость удаления view у всех существующих пользователей
+ *                          >0 - удалить, иначе не удалять
+ * НЕОБЯЗАТЕЛЬНЫЕ ПАРАМЕТРЫ (рекомендуется не указывать при вызове) :
+ *   actionCode - код операции (для логгирования). При вызове ВСЕГДА задавать = NULL !!!
+ *
+ * результат выполнения:
+ *    0 - ошибок нет
+ *   >0 - кол-во ошибочных sql-команд
+ *   -1 - ошибок нет, но операция, возможно, выполнена неполностью
+ ********************************************************************/
+DECLARE
+   sqlLine text;
+   cntError integer default 0;
+   actionId integer;
+   sqlId integer;
+   functionName varchar(40) default 'removeViewDefine()';
+
+   res integer;
+   success boolean default true;
+   oldTypeView  integer;
+   indexPostFix varchar(30) default replicate_indexPostFix();
+   mainSchema varchar(200) default replicate_mainSchema();
+   usrContext varchar(200) default replicate_columnContext();
+
+   -- тип доступа к данным
+   accessViewFullR   integer := 0;          -- Read only  по всем записям таблицы
+   accessViewFullRW  integer := 1;          -- Read/Write по всем записям таблицы
+   accessViewOwnerRW integer := 2;          -- Read/Write по своим записям таблицы
+
+   
+BEGIN
+   -- log операций
+   if (actionCode is null or actionCode = 0) then
+      actionId := nextval('replicate_actions_seq');  
+      INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, platypusUserName, functionName);
+   else
+      actionId := actionCode;
+      if (not exists(select 1 from replicate_actions t1 where t1.id = actionCode)) then
+         INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, platypusUserName, functionName);
+         actionCode := null;
+      end if;      
+   end if;
+
+
+   -- проверить на наличие в описаниях 
+   select typ into oldTypeView from replicate_views where lower(tableName) = lower(aTableName);
+   if oldTypeView = accessViewOwnerRW then
+--???          sqlline := 'alter table ' || mainSchema || '.' || aTableName || ' drop column ' || columnContext;
+--???          executeSql(aActionId,functionName,sqlline);
+           sqlId := nextval('replicate_actions_sqls_seq');  
+           sqlline := 'drop index '  || mainSchema || '.' || aTableName || indexPostFix;
+           INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+           BEGIN
+             EXECUTE sqlLine;
+             -- результат sql-команды
+             update replicate_actions_sqls set error_code = 0 where id = sqlId;
+           EXCEPTION WHEN OTHERS THEN
+             cntError := cntError + 1;
+             -- результат sql-команды
+             update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+           END;
+
+   end if;
+
+   if needToDropViews > 0 then
+       res := replicate_dropView(platypusUserName, '', aTableName,actionId);
+       if (res >= 0) then
+           cntError := cntError + res;
+       else
+           success := false;
+       end if;      
+   end if;
+   delete from replicate_views where lower(tablename) = lower(aTableName);
+
+   -- результат операции (кол-во ошибок)
+   if (not success and cntError = 0) then
+      cntError := -1;
+   end if;
+   if (actionCode is null or actionCode = 0) then
+      update replicate_actions set error_code = cntError where id = actionId;
+   end if;   
+   
+   RETURN cntError;
+END;
+$$ LANGUAGE plpgsql;

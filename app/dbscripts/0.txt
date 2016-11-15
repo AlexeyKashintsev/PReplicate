@@ -1,0 +1,10 @@
+--postgres
+create database transcard_db;
+create user transcard with password 'ptranscard';
+grant all privileges on database transcard_db to transcard;
+
+
+--transscard
+CREATE SCHEMA transcard AUTHORIZATION transcard;
+
+

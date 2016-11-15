@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?><layout title="" view="view">
+  <AnchorsPane background="#ffffff" cursor="0" name="view" prefHeight="436px" prefWidth="817px"/>
+  <TabbedPane cursor="0" name="tabbedPane" parent="view" prefHeight="416px" prefWidth="797px" selectedComponent="panel">
+    <AnchorsPaneConstraints bottom="10px" left="10px" right="10px" top="10px"/>
+  </TabbedPane>
+  <AnchorsPane background="#ffffff" cursor="0" name="panel" parent="tabbedPane" prefHeight="377px" prefWidth="785px">
+    <TabbedPaneConstraints tabTitle="tab0" tabToolTip=""/>
+  </AnchorsPane>
+  <Label cursor="0" name="label" parent="panel" prefHeight="30px" prefWidth="100px" text="Схема">
+    <AnchorsPaneConstraints height="30px" left="10px" top="20px" width="100px"/>
+  </Label>
+  <TextField cursor="0" name="txtSchema" parent="panel" prefHeight="23px" prefWidth="410px" toolTipText="Расположение обрабатываемых таблиц">
+    <AnchorsPaneConstraints height="23px" left="110px" top="30px" width="410px"/>
+  </TextField>
+  <Label cursor="0" name="label1" parent="panel" prefHeight="30px" prefWidth="100px" text="Таблица">
+    <AnchorsPaneConstraints height="30px" left="0px" top="50px" width="100px"/>
+  </Label>
+  <TextField cursor="0" name="txtTable" parent="panel" prefHeight="20px" prefWidth="410px" toolTipText="Таблица для обработки (если не задано, то все из replicate_views)">
+    <AnchorsPaneConstraints height="20px" left="110px" top="60px" width="410px"/>
+  </TextField>
+  <Button cursor="0" name="btnAddColumn" parent="panel" prefHeight="30px" prefWidth="340px" text="Добавить поле-признак удаления">
+    <AnchorsPaneConstraints height="30px" left="110px" top="130px" width="340px"/>
+  </Button>
+  <Button cursor="0" name="btnCreateFunction" parent="panel" prefHeight="30px" prefWidth="340px" text="Создать/пересоздать триггерную функцию">
+    <AnchorsPaneConstraints height="30px" left="110px" top="170px" width="340px"/>
+  </Button>
+  <Button cursor="0" name="btnCreateTrigger" parent="panel" prefHeight="30px" prefWidth="340px" text="Создать триггер">
+    <AnchorsPaneConstraints height="30px" left="110px" top="210px" width="340px"/>
+  </Button>
+  <Button cursor="0" name="btnDropFunction" parent="panel" prefHeight="30px" prefWidth="240px" text="Удалить триггерную функцию">
+    <AnchorsPaneConstraints height="30px" left="460px" top="170px" width="240px"/>
+  </Button>
+  <Button cursor="0" name="btnDropTrigger" parent="panel" prefHeight="30px" prefWidth="240px" text="Удалить триггер">
+    <AnchorsPaneConstraints height="30px" left="460px" top="210px" width="240px"/>
+  </Button>
+  <AnchorsPane background="#ffffff" cursor="0" name="panel1" parent="tabbedPane" prefHeight="377px" prefWidth="785px" visible="false">
+    <TabbedPaneConstraints tabTitle="tab1" tabToolTip=""/>
+  </AnchorsPane>
+  <ModelGrid cursor="0" data="ldelete_licenceOnDelete" name="modelGrid" parent="panel1" prefHeight="307px" prefWidth="765px">
+    <AnchorsPaneConstraints bottom="60px" left="10px" right="10px" top="10px"/>
+    <ModelGridColumn field="tablename" name="column" title="Таблица" width="375px">
+      <ModelFormattedField format=""/>
+    </ModelGridColumn>
+    <ModelGridColumn field="status" name="column1" title="Разрешить физическое удаление" width="374px">
+      <ModelCheckBox/>
+    </ModelGridColumn>
+  </ModelGrid>
+  <Button cursor="0" name="btnSave" parent="panel1" prefHeight="30px" prefWidth="100px" text="Save">
+    <AnchorsPaneConstraints bottom="7px" height="30px" left="10px" width="100px"/>
+  </Button>
+</layout>

@@ -1,0 +1,481 @@
+alter table replicate_views add status boolean;
+-----------------------------------------------------
+CREATE OR REPLACE FUNCTION ldel_columnName() RETURNS varchar AS $$
+BEGIN
+   -- поле-признак удаления записи
+   RETURN 'ddel';
+END;
+$$ LANGUAGE plpgsql;
+----------------------------------------------------
+CREATE OR REPLACE FUNCTION ldel_addColumn(aPlatypusUsername character varying, aSchemaName character varying DEFAULT NULL::character varying, aTableName character varying DEFAULT NULL::character varying, actionCode double precision DEFAULT NULL::double precision)
+  RETURNS numeric AS
+$BODY$
+/********************************************************************
+ * Добавить колонку- признак удаления записи (DDEL timestamp)
+ *
+ *   aPlatypusUserName - имя пользователя Platypus (используется только для логгирования)
+ *   aSchemaName       - имя схемы (умолчанию текущая)
+ *                       если aSchemaName = null или '', то берется current_schema()
+ *   aTableName        - имя таблицы 
+ *                       если aTableName = null или '', то по всем таблицам, заданных в REPLICATE_VIEWS
+ *   actionCode - код операции (для логгирования). При вызове ВСЕГДА задавать = NULL !!!
+ *
+ * результат выполнения:
+ *    0 - ошибок нет
+ *   >0 - кол-во ошибочных sql-команд
+ *   -1 - ошибок нет, но операция, возможно, выполнена неполностью
+ ********************************************************************/
+DECLARE
+   sqlLine text;
+   cntError integer default 0;
+   actionId integer;
+   sqlId integer;
+   functionName varchar(40) default 'ldel_addColumn()';
+   columnForDelete varchar(40) default ldel_columnName();
+
+   schemaName text;
+   tableNames text[];
+   i integer;
+BEGIN
+   /*-- log операций */
+   if (actionCode is null or actionCode = 0) then
+      actionId := nextval('replicate_actions_seq');  
+      INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+   else
+      actionId := actionCode;
+      if (not exists(select 1 from replicate_actions t1 where t1.id = actionCode)) then
+         INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+         actionCode := null;
+      end if;      
+   end if;
+
+   if (aSchemaName is NULL or aSchemaName = '') then
+      schemaName = current_schema();
+   else
+      schemaName = aSchemaName;
+   end if;
+
+   if (aTableName is NULL or aTableName = '') then
+      if (exists(select 1 from information_schema.tables where table_schema = schemaName and table_name = 'replicate_views')) then
+         select array(select tablename::text from REPLICATE_VIEWS) into tableNames;
+      end if;
+   else 
+      tableNames[1] = aTableName;
+   end if;
+
+   /*-- по всем имеющимся таблицам или по одной заданной */
+   if (array_length(tableNames,1) > 0) then
+      for i in 1..array_length(tableNames,1) loop
+         sqlLine = 'alter table ' || schemaName || '.' || tableNames[i] || ' add ' || columnForDelete || ' timestamp';
+         sqlId := nextval('replicate_actions_sqls_seq');  
+         INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+         BEGIN
+	    EXECUTE sqlLine;
+            /* -- результат sql-команды */
+	    update replicate_actions_sqls set error_code = 0 where id = sqlId;
+         EXCEPTION WHEN OTHERS THEN
+	    cntError := cntError + 1;
+	    /* -- результат sql-команды */
+	    update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+         END;
+      end loop;
+
+   else
+      cntError = -1;
+   end if;
+   
+   /* -- результат операции (кол-во ошибок) */
+   update replicate_actions set error_code = cntError where id = actionId;
+   RETURN cntError;
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE;
+
+-----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION ldel_createFunction(aPlatypusUsername character varying, aSchemaname character varying DEFAULT NULL::character varying, aTablename character varying DEFAULT NULL::character varying, actionCode double precision DEFAULT NULL::double precision)
+  RETURNS numeric AS
+$BODY$
+/********************************************************************
+ * Cоздать функцию для триггера
+ *
+ *   aPlatypusUserName - имя пользователя Platypus (используется только для логгирования)
+ *   aSchemaName       - имя схемы (умолчанию текущая)
+ *                       если aSchemaName = null или '', то берется current_schema()
+ *   aTableName        - имя таблицы 
+ *                       если aTableName = null или '', то по всем таблицам, заданных в REPLICATE_VIEWS
+ *   actionCode - код операции (для логгирования). При вызове ВСЕГДА задавать = NULL !!!
+ *
+ * результат выполнения:
+ *    0 - ошибок нет
+ *   >0 - кол-во ошибочных sql-команд
+ *   -1 - ошибок нет, но операция, возможно, выполнена неполностью
+ ********************************************************************/
+DECLARE
+   sqlLine text;
+   cntError integer default 0;
+   actionId integer;
+   sqlId integer;
+   functionName varchar(40) default 'ldel_createFunction()';
+   columnForDelete varchar(40) default ldel_columnName();
+   functionNamePreffix varchar(40) default 'fld_';
+
+   schemaName text;
+   tableNames text[];
+   i integer;
+   eol	varchar(10) := chr(13)||chr(10);
+   whereStr text;
+BEGIN
+   /*-- log операций */
+   if (actionCode is null or actionCode = 0) then
+      actionId := nextval('replicate_actions_seq');  
+      INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+   else
+      actionId := actionCode;
+      if (not exists(select 1 from replicate_actions t1 where t1.id = actionCode)) then
+         INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+         actionCode := null;
+      end if;      
+   end if;
+
+   if (aSchemaName is NULL or aSchemaName = '') then
+      schemaName = current_schema();
+   else
+      schemaName = aSchemaName;
+   end if;
+
+   if (aTableName is NULL or aTableName = '') then
+      if (exists(select 1 from information_schema.tables where table_schema = schemaName and table_name = 'replicate_views')) then
+         select array(select tablename::text from REPLICATE_VIEWS) into tableNames;
+      end if;
+   else 
+      tableNames[1] = aTableName;
+   end if;
+
+   /*-- по всем имеющимся таблицам или по одной заданной */
+   if (array_length(tableNames,1) > 0) then
+      for i in 1..array_length(tableNames,1) loop
+
+         SELECT array_to_string(array(SELECT a.attname || ' = old.'|| a.attname 
+         FROM pg_catalog.pg_namespace n, pg_catalog.pg_class ct, pg_catalog.pg_class ci, pg_catalog.pg_attribute a, pg_catalog.pg_index ind
+         WHERE ct.oid=ind.indrelid AND ci.oid=ind.indexrelid  AND a.attrelid=ci.oid AND ind.indisprimary AND ct.relnamespace = n.oid 
+         AND n.nspname = schemaName and lower(ct.relname) = lower(tableNames[i])),' and ') into whereStr;
+
+         if (whereStr is not null and whereStr <> '')  then 
+         
+            sqlLine = 'CREATE OR REPLACE FUNCTION ' || schemaName || '.' || functionNamePreffix || tableNames[i] || '() RETURNS TRIGGER AS $$' || eol;
+            sqlline = sqlLine || 'declare' || eol;
+            sqlline = sqlLine || '   st boolean;' || eol;
+            sqlline = sqlLine || 'BEGIN' || eol;
+            sqlline = sqlLine || '   if old.'|| columnForDelete ||' is null then' || eol;
+            sqlline = sqlLine || '      update ' || schemaName || '.' || tableNames[i] || ' set ' || columnForDelete || '= now() where ' || whereStr || ';' || eol;
+            sqlline = sqlLine || '      return null;' || eol;
+            sqlline = sqlLine || '   else' || eol;
+            sqlline = sqlLine || '      begin' || eol;
+            sqlline = sqlLine || '         select status into st from ' || schemaName || '.' || 'replicate_views where lower(tablename) = lower('''||tableNames[i]||''') limit 1;' || eol;
+            sqlline = sqlLine || '      exception when others then' || eol;
+            sqlline = sqlLine || '         return null;' || eol;
+            sqlline = sqlLine || '      end;' || eol;
+            sqlline = sqlLine || '      if st then' || eol;
+            sqlline = sqlLine || '         return old;' || eol;
+            sqlline = sqlLine || '      else' || eol;
+            sqlline = sqlLine || '         return null;' || eol;
+            sqlline = sqlLine || '      end if;' || eol;
+            sqlline = sqlLine || '   end if;' || eol;
+            sqlline = sqlLine || 'END;' || eol;
+            sqlline = sqlLine || '$$ LANGUAGE plpgsql;' || eol;
+      
+            sqlId := nextval('replicate_actions_sqls_seq');  
+            INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+            BEGIN
+	       EXECUTE sqlLine;
+               /* -- результат sql-команды */
+	       update replicate_actions_sqls set error_code = 0 where id = sqlId;
+            EXCEPTION WHEN OTHERS THEN
+	       cntError := cntError + 1;
+	       /* -- результат sql-команды */
+	       update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+            END;
+         end if;
+      end loop;
+
+   else
+      cntError = -1;
+   end if;
+   
+   /* -- результат операции (кол-во ошибок) */
+   update replicate_actions set error_code = cntError where id = actionId;
+   RETURN cntError;
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE;
+
+----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION ldel_createTrigger(aPlatypusUsername character varying, aSchemaname character varying DEFAULT NULL::character varying, aTablename character varying DEFAULT NULL::character varying, actionCode double precision DEFAULT NULL::double precision)
+  RETURNS numeric AS
+$BODY$
+/********************************************************************
+ * Cоздать функцию для триггера
+ *
+ *   aPlatypusUserName - имя пользователя Platypus (используется только для логгирования)
+ *   aSchemaName       - имя схемы (умолчанию текущая)
+ *                       если aSchemaName = null или '', то берется current_schema()
+ *   aTableName        - имя таблицы 
+ *                       если aTableName = null или '', то view создаются по всем таблицам, заданных в REPLICATE_VIEWS
+ *   actionCode - код операции (для логгирования). При вызове ВСЕГДА задавать = NULL !!!
+ *
+ * результат выполнения:
+ *    0 - ошибок нет
+ *   >0 - кол-во ошибочных sql-команд
+ *   -1 - ошибок нет, но операция, возможно, выполнена неполностью
+ ********************************************************************/
+DECLARE
+   sqlLine text;
+   cntError integer default 0;
+   actionId integer;
+   sqlId integer;
+   functionName varchar(40) default 'ldel_createTrigger()';
+   functionNamePreffix varchar(40) default 'fld_';
+   triggerNamePreffix varchar(40) default 'tld_';
+
+   schemaName text;
+   tableNames text[];
+   i integer;
+BEGIN
+   /*-- log операций */
+   if (actionCode is null or actionCode = 0) then
+      actionId := nextval('replicate_actions_seq');  
+      INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+   else
+      actionId := actionCode;
+      if (not exists(select 1 from replicate_actions t1 where t1.id = actionCode)) then
+         INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+         actionCode := null;
+      end if;      
+   end if;
+
+   if (aSchemaName is NULL or aSchemaName = '') then
+      schemaName = current_schema();
+   else
+      schemaName = aSchemaName;
+   end if;
+
+   if (aTableName is NULL or aTableName = '') then
+      if (exists(select 1 from information_schema.tables where table_schema = schemaName and table_name = 'replicate_views')) then
+         select array(select tablename::text from REPLICATE_VIEWS) into tableNames;
+      end if;
+   else 
+      tableNames[1] = aTableName;
+   end if;
+
+   /*-- по всем имеющимся таблицам или по одной заданной */
+   if (array_length(tableNames,1) > 0) then
+      for i in 1..array_length(tableNames,1) loop
+
+
+         sqlLine = 'CREATE TRIGGER ' || triggerNamePreffix || tableNames[i] || ' before DELETE ON ' || schemaName || '.' || tableNames[i] || ' FOR EACH ROW EXECUTE PROCEDURE ' || functionNamePreffix || tableNames[i] || '()';
+      
+         sqlId := nextval('replicate_actions_sqls_seq');  
+         INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+         BEGIN
+            EXECUTE sqlLine;
+            /* -- результат sql-команды */
+	    update replicate_actions_sqls set error_code = 0 where id = sqlId;
+         EXCEPTION WHEN OTHERS THEN
+	    cntError := cntError + 1;
+	    /* -- результат sql-команды */
+	    update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+         END;
+      end loop;
+
+   else
+      cntError = -1;
+   end if;
+   
+   /* -- результат операции (кол-во ошибок) */
+   update replicate_actions set error_code = cntError where id = actionId;
+   RETURN cntError;
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE;
+
+---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION ldel_dropFunction(aPlatypusUsername character varying, aSchemaname character varying DEFAULT NULL::character varying, aTablename character varying DEFAULT NULL::character varying, actionCode double precision DEFAULT NULL::double precision)
+  RETURNS numeric AS
+$BODY$
+/********************************************************************
+ * Удалить триггер
+ *
+ *   aPlatypusUserName - имя пользователя Platypus (используется только для логгирования)
+ *   aSchemaName       - имя схемы (умолчанию текущая)
+ *                       если aSchemaName = null или '', то берется current_schema()
+ *   aTableName        - имя таблицы 
+ *                       если aTableName = null или '', то по всем таблицам, заданных в REPLICATE_VIEWS
+ *   actionCode - код операции (для логгирования). При вызове ВСЕГДА задавать = NULL !!!
+ *
+ * результат выполнения:
+ *    0 - ошибок нет
+ *   >0 - кол-во ошибочных sql-команд
+ *   -1 - ошибок нет, но операция, возможно, выполнена неполностью
+ ********************************************************************/
+DECLARE
+   sqlLine text;
+   cntError integer default 0;
+   actionId integer;
+   sqlId integer;
+   functionName varchar(40) default 'ldel_dropFunction()';
+   functionNamePreffix varchar(40) default 'fld_';
+   triggerNamePreffix varchar(40) default 'tld_';
+
+   schemaName text;
+   tableNames text[];
+   i integer;
+BEGIN
+   /*-- log операций */
+   if (actionCode is null or actionCode = 0) then
+      actionId := nextval('replicate_actions_seq');  
+      INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+   else
+      actionId := actionCode;
+      if (not exists(select 1 from replicate_actions t1 where t1.id = actionCode)) then
+         INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+         actionCode := null;
+      end if;      
+   end if;
+
+   if (aSchemaName is NULL or aSchemaName = '') then
+      schemaName = current_schema();
+   else
+      schemaName = aSchemaName;
+   end if;
+
+   if (aTableName is NULL or aTableName = '') then
+      if (exists(select 1 from information_schema.tables where table_schema = schemaName and table_name = 'replicate_views')) then
+         select array(select tablename::text from REPLICATE_VIEWS) into tableNames;
+      end if;
+   else 
+      tableNames[1] = aTableName;
+   end if;
+
+   /*-- по всем имеющимся таблицам или по одной заданной */
+   if (array_length(tableNames,1) > 0) then
+      for i in 1..array_length(tableNames,1) loop
+
+
+         sqlLine = 'DROP FUNCTION ' || schemaName || '.' || functionNamePreffix || tableNames[i] || '()';
+      
+         sqlId := nextval('replicate_actions_sqls_seq');  
+         INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+         BEGIN
+            EXECUTE sqlLine;
+            /* -- результат sql-команды */
+	    update replicate_actions_sqls set error_code = 0 where id = sqlId;
+         EXCEPTION WHEN OTHERS THEN
+	    cntError := cntError + 1;
+	    /* -- результат sql-команды */
+	    update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+         END;
+      end loop;
+
+   else
+      cntError = -1;
+   end if;
+   
+   /* -- результат операции (кол-во ошибок) */
+   update replicate_actions set error_code = cntError where id = actionId;
+   RETURN cntError;
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE;
+
+---------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION ldel_dropTrigger(aPlatypusUsername character varying, aSchemaname character varying DEFAULT NULL::character varying, aTablename character varying DEFAULT NULL::character varying, actionCode double precision DEFAULT NULL::double precision)
+  RETURNS numeric AS
+$BODY$
+/********************************************************************
+ * Удалить триггер
+ *
+ *   aPlatypusUserName - имя пользователя Platypus (используется только для логгирования)
+ *   aSchemaName       - имя схемы (умолчанию текущая)
+ *                       если aSchemaName = null или '', то берется current_schema()
+ *   aTableName        - имя таблицы 
+ *                       если aTableName = null или '', то по всем таблицам, заданных в REPLICATE_VIEWS
+ *   actionCode - код операции (для логгирования). При вызове ВСЕГДА задавать = NULL !!!
+ *
+ * результат выполнения:
+ *    0 - ошибок нет
+ *   >0 - кол-во ошибочных sql-команд
+ *   -1 - ошибок нет, но операция, возможно, выполнена неполностью
+ ********************************************************************/
+DECLARE
+   sqlLine text;
+   cntError integer default 0;
+   actionId integer;
+   sqlId integer;
+   functionName varchar(40) default 'ldel_dropTrigger()';
+   functionNamePreffix varchar(40) default 'fld_';
+   triggerNamePreffix varchar(40) default 'tld_';
+
+   schemaName text;
+   tableNames text[];
+   i integer;
+BEGIN
+   /*-- log операций */
+   if (actionCode is null or actionCode = 0) then
+      actionId := nextval('replicate_actions_seq');  
+      INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+   else
+      actionId := actionCode;
+      if (not exists(select 1 from replicate_actions t1 where t1.id = actionCode)) then
+         INSERT INTO replicate_actions (id, platypus_name, define) values (actionId, aPlatypusUserName, functionName);
+         actionCode := null;
+      end if;      
+   end if;
+
+   if (aSchemaName is NULL or aSchemaName = '') then
+      schemaName = current_schema();
+   else
+      schemaName = aSchemaName;
+   end if;
+
+   if (aTableName is NULL or aTableName = '') then
+      if (exists(select 1 from information_schema.tables where table_schema = schemaName and table_name = 'replicate_views')) then
+         select array(select tablename::text from REPLICATE_VIEWS) into tableNames;
+      end if;
+   else 
+      tableNames[1] = aTableName;
+   end if;
+
+   /*-- по всем имеющимся таблицам или по одной заданной */
+   if (array_length(tableNames,1) > 0) then
+      for i in 1..array_length(tableNames,1) loop
+
+
+         sqlLine = 'DROP TRIGGER ' || triggerNamePreffix || tableNames[i] || ' ON ' || schemaName || '.' || tableNames[i];
+      
+         sqlId := nextval('replicate_actions_sqls_seq');  
+         INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+         BEGIN
+            EXECUTE sqlLine;
+            /* -- результат sql-команды */
+	    update replicate_actions_sqls set error_code = 0 where id = sqlId;
+         EXCEPTION WHEN OTHERS THEN
+	    cntError := cntError + 1;
+	    /* -- результат sql-команды */
+	    update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+         END;
+      end loop;
+
+   else
+      cntError = -1;
+   end if;
+   
+   /* -- результат операции (кол-во ошибок) */
+   update replicate_actions set error_code = cntError where id = actionId;
+   RETURN cntError;
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE;
+
+
+

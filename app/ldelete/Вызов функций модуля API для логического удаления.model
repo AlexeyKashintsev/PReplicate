@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?><datamodel>
+  <entity Name="ldelete_getCurrentSchema" Title="" entityHeight="200" entityIconified="false" entityId="147886901764718" entityLocationX="78" entityLocationY="45" entityWidth="150" queryId="ldelete_getCurrentSchema" tableName="" tableSchemaName=""/>
+  <entity Name="ldelete_licenceOnDelete" Title="" entityHeight="200" entityIconified="false" entityId="147887269461307" entityLocationX="77" entityLocationY="256" entityWidth="150" queryId="ldelete_licenceOnDelete" tableName="" tableSchemaName=""/>
+</datamodel>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?><datamodel>
+  <entity Name="ldelete_dropFunction" Title="" entityHeight="200" entityIconified="false" entityId="147887071638334" entityLocationX="211" entityLocationY="478" entityWidth="150" queryId="ldelete_dropFunction" tableName="" tableSchemaName=""/>
+  <entity Name="dsGetActionId" Title="" entityHeight="200" entityIconified="false" entityId="147869678552608" entityLocationX="30" entityLocationY="16" entityWidth="150" queryId="135660700473469" tableName="" tableSchemaName=""/>
+  <entity Name="ldelete_dropTrigger" Title="" entityHeight="200" entityIconified="false" entityId="147887072537433" entityLocationX="401" entityLocationY="482" entityWidth="150" queryId="ldelete_dropTrigger" tableName="" tableSchemaName=""/>
+  <entity Name="ldel_resultOperaition" Title="" entityHeight="200" entityIconified="false" entityId="147886380347874" entityLocationX="217" entityLocationY="18" entityWidth="150" queryId="ldel_resultOperaition" tableName="" tableSchemaName=""/>
+  <entity Name="ldelete_columnName" Title="" entityHeight="200" entityIconified="false" entityId="147885190859277" entityLocationX="37" entityLocationY="251" entityWidth="150" queryId="ldelete_columnName" tableName="" tableSchemaName=""/>
+  <entity Name="ldelete_createTrigger" Title="" entityHeight="200" entityIconified="false" entityId="147887070930461" entityLocationX="404" entityLocationY="250" entityWidth="150" queryId="ldelete_createTrigger" tableName="" tableSchemaName=""/>
+  <entity Name="ldelete_createFunction" Title="" entityHeight="200" entityIconified="false" entityId="147887070481762" entityLocationX="214" entityLocationY="248" entityWidth="150" queryId="ldelete_createFunction" tableName="" tableSchemaName=""/>
+</datamodel>

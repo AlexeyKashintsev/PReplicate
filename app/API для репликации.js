@@ -12,6 +12,7 @@ define('ReplicationAPI' , ['orm'], function (Orm, ModuleName) {
 //        });
 
         /* имя текущего пользователя Platypus (используется только для логирования) */
+       //self.principal.
         var platypusUserName = "";//self.principal.name;
 
         /**

@@ -1,0 +1,78 @@
+CREATE OR REPLACE VIEW dummytable AS SELECT character varying(100) '' as dummy;
+
+create sequence REPLICATE_ACTIONS_SEQ;
+create sequence REPLICATE_ACTIONS_SQLS_SEQ;   
+create sequence REPLICATE_SCHEMASNAMES_SEQ;
+create sequence REPLICATE_SEQUENCES_SEQ;
+create sequence REPLICATE_VIEWS_SEQ;
+
+CREATE TABLE mtd_users
+(
+  usr_name character varying(200) NOT NULL,
+  usr_passwd character varying(200),
+  usr_form character varying(200),
+  usr_context character varying(200),
+  usr_roles character varying(200),
+  usr_phone character varying(200),
+  usr_email character varying(200),
+  usr_id numeric NOT NULL,
+  CONSTRAINT mtd_users_pk PRIMARY KEY (usr_id)
+);
+COMMENT ON COLUMN mtd_users.usr_context IS 'Не трогать! Для изоляции данных.';
+
+CREATE INDEX mtd_users_i  ON mtd_users  USING btree  (usr_context);
+CREATE UNIQUE INDEX mtd_users_unique  ON mtd_users  USING btree  (usr_name);
+
+
+-------------------------------------------
+
+create table REPLICATE_ACTIONS
+(
+  ID            NUMERIC not null,
+  D             TIMESTAMP default now(),
+  PLATYPUS_NAME VARCHAR(100),
+  DB_USER  	VARCHAR(100) default user,
+  OS_USER       VARCHAR(100) ,
+  HOST_NAME     VARCHAR(100) ,
+  IP4           VARCHAR(20) default substr(text(inet_client_addr()),1,15),
+  ERROR_CODE    INTEGER,
+  DEFINE        VARCHAR(100)
+);
+alter table REPLICATE_ACTIONS  add constraint REPLICATE_ACTIONS_PK primary key (ID);
+
+
+create table REPLICATE_ACTIONS_SQLS
+(
+  ID            NUMERIC not null,
+  ACTION_ID     NUMERIC,
+  D             TIMESTAMP(6) default now(),
+  FUNCTIONNAME  VARCHAR(40),
+  SQLTEXT       VARCHAR(4000),
+  ERROR_CODE    INTEGER,
+  ERROR_MESSAGE VARCHAR(4000)
+);
+alter table REPLICATE_ACTIONS_SQLS  add constraint REPLICATE_ACTIONS_SQLS_PK primary key (ID);
+alter table REPLICATE_ACTIONS_SQLS  add constraint REPLICATE_ACTIONS_SQLS_FK foreign key (ACTION_ID) references REPLICATE_ACTIONS (ID) on delete cascade;
+
+create table REPLICATE_SEQUENCES
+(
+  ID           NUMERIC not null default nextval('REPLICATE_SEQUENCES_SEQ'),
+  SEQUENCENAME VARCHAR(30)
+);
+comment on table REPLICATE_SEQUENCES  is 'Последовательности для репликации';
+alter table REPLICATE_SEQUENCES  add constraint REPLICATE_SEQUENCES_PK primary key (ID);
+create unique index REPLICATE_SEQUENCES_IND on REPLICATE_SEQUENCES (lower(SEQUENCENAME));
+
+
+create table REPLICATE_VIEWS
+(
+  ID        NUMERIC not null default nextval('REPLICATE_VIEWS_SEQ'),
+  TABLENAME VARCHAR(30) not null,
+  TYP       INTEGER
+);
+comment on table REPLICATE_VIEWS  is 'Таблицы для репликации';
+comment on column REPLICATE_VIEWS.TYP  is 'type view: 0-all records (READ ONLY);  1-all records (READ/WRITE);  2 where usr_context=''user'' (READ/WRITE);';
+alter table REPLICATE_VIEWS  add constraint REPLICATE_VIEWS_PK primary key (ID);
+create unique index REPLICATE_VIEWS_IND on REPLICATE_VIEWS (lower(TABLENAME));
+
+
