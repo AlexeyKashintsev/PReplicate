@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?><datamodel>
-  <parametersEntity entityHeight="126" entityIconified="false" entityLocationX="12" entityLocationY="12" entityWidth="150"/>
-  <entity Name="dsResult" Title="" entityHeight="200" entityIconified="false" entityId="139331223429948" entityLocationX="21" entityLocationY="607" entityWidth="150" queryId="replicate_getResult" tableName="" tableSchemaName=""/>
-  <entity Name="dsRemoveViewDefine" Title="replicate_removeViewDefine" entityHeight="200" entityIconified="false" entityId="139219555804111" entityLocationX="510" entityLocationY="384" entityWidth="150" queryId="135789261543758" tableName="" tableSchemaName=""/>
-  <entity Name="dsDropSchema" Title="replicate_dropSchema" entityHeight="200" entityIconified="false" entityId="139219095102763" entityLocationX="17" entityLocationY="387" entityWidth="150" queryId="135789202345338" tableName="" tableSchemaName=""/>
-  <entity Name="dsDropView" Title="replicate_dropView" entityHeight="200" entityIconified="false" entityId="139219318027725" entityLocationX="177" entityLocationY="385" entityWidth="150" queryId="135789226175018" tableName="" tableSchemaName=""/>
-  <entity Name="dsDropSequence" Title="replicate_dropSeq" entityHeight="200" entityIconified="false" entityId="139219402004650" entityLocationX="352" entityLocationY="388" entityWidth="150" queryId="135789240187599" tableName="" tableSchemaName=""/>
-</datamodel>

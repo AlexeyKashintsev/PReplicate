@@ -1,4 +1,4 @@
-alter table replicate_views add status boolean;
+alter table replicate_views add fdel_status boolean;
 -----------------------------------------------------
 CREATE OR REPLACE FUNCTION ldel_columnName() RETURNS varchar AS $$
 BEGIN
@@ -171,7 +171,7 @@ BEGIN
             sqlline = sqlLine || '      return null;' || eol;
             sqlline = sqlLine || '   else' || eol;
             sqlline = sqlLine || '      begin' || eol;
-            sqlline = sqlLine || '         select status into st from ' || schemaName || '.' || 'replicate_views where lower(tablename) = lower('''||tableNames[i]||''') limit 1;' || eol;
+            sqlline = sqlLine || '         select fdel_status into st from ' || schemaName || '.' || 'replicate_views where lower(tablename) = lower('''||tableNames[i]||''') limit 1;' || eol;
             sqlline = sqlLine || '      exception when others then' || eol;
             sqlline = sqlLine || '         return null;' || eol;
             sqlline = sqlLine || '      end;' || eol;

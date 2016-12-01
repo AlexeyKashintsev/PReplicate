@@ -41,7 +41,7 @@
     <ModelGridColumn field="tablename" name="column" title="Таблица" width="375px">
       <ModelFormattedField format=""/>
     </ModelGridColumn>
-    <ModelGridColumn field="status" name="column1" title="Разрешить физическое удаление" width="374px">
+    <ModelGridColumn field="fdel_status" name="column1" title="Разрешить физическое удаление" width="374px">
       <ModelCheckBox/>
     </ModelGridColumn>
   </ModelGrid>

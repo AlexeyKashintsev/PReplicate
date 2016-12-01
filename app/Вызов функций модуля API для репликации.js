@@ -86,7 +86,7 @@ define('ReplicatesAPIView', ['orm', 'forms', 'ui', 'ReplicationAPI'], function (
         };
 
         form.btnRemoveDefine.onActionPerformed = function (evt) {//p3p5
-            replicateModule.removeViewDefine(form.comboRemoveDefine.value.tablename, (form.chkRemoveAll.selected ? 1 : 0), function (aRes) {
+            replicateModule.removeViewDefine(form.comboRemoveDefine.jsValue.tablename, (form.chkRemoveAll.selected ? 1 : 0), function (aRes) {
                 showResult(aRes);
                 refreshDefineViews();
             });
