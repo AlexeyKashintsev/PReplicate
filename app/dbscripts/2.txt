@@ -41,3 +41,10 @@ BEGIN
     RETURN replicate_prefixSchemaName() || nextval('REPLICATE_SCHEMASNAMES_SEQ');
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION replicate_adminSchemaName() RETURNS varchar AS $$
+BEGIN
+   -- имя схемы для администратора по всем пользовател без удаленных записепй
+   RETURN lower(replicate_prefixSchemaName()) || '_admin'; 
+END;
+$$ LANGUAGE plpgsql;

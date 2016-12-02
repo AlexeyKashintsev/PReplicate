@@ -84,7 +84,6 @@ END;
 $$ LANGUAGE plpgsql;
 
 ---------------------------------------------------------------------------------------
-
 CREATE OR REPLACE FUNCTION replicate_createView(aPlatypusUserName in varchar,aSchemaName in varchar, aTableName in varchar, actionCode in numeric default null ) RETURNS numeric AS $$
 /********************************************************************
  * создать view + дать права на таблицы
@@ -131,6 +130,14 @@ DECLARE
    success boolean default false;
 
    ldel_name text;
+   main_left1 text;
+   main_left2 text;
+   main_left3 text;
+   main_right1 text;
+   main_right2 text;
+   main_right3 text;
+
+   
    
 BEGIN
    -- log операций
@@ -149,8 +156,8 @@ BEGIN
    FOR currentTable in SELECT * FROM REPLICATE_VIEWS T WHERE aTableName is null OR aTableName = '' OR upper(aTableName) = upper(T.tablename) LOOP
 
       ldel_name = '';
-      if exists(select 1 from information_schema.columns where table_schema = replicate_mainSchema() and table_name = currentTable.tablename and column_name = ldel_columnName()) then
-         ldel_name = ldel_columnName();
+      if exists(select 1 from information_schema.columns where table_schema = replicate_mainSchema() and table_name = currentTable.tablename and column_name = ldel_columnName(currentTable.tablename)) then
+         ldel_name = ldel_columnName(currentTable.tablename);
       end if;       
 
 
@@ -173,8 +180,7 @@ BEGIN
           
              -- позиция колонки в primary key
              if (currentColumn.pk > 0) then
-                --left2 := left2 || dlm1 || currentColumn.name || ' = coalesce(NEW.' || currentColumn.name || ',OLD.' || currentColumn.name || ')';
-                   left2 := left2 || dlm1 || currentColumn.name || ' = NEW.' || currentColumn.name;
+                left2 := left2 || dlm1 || currentColumn.name || ' = NEW.' || currentColumn.name;
                 
                 right1 := right1 || dlm1 || 'NEW.' || currentColumn.name;
                 right2 := right2 || dlm2 || currentColumn.name || ' = OLD.' || currentColumn.name;
@@ -196,43 +202,167 @@ BEGIN
          END LOOP;  
       END IF;   
 
+
+      -- для схемы администратора без удаленных записей(начало)
+      dlm1 := ''; 
+      dlm2 := ''; 
+
+      main_left1 := ''; 
+      main_left2 := ''; 
+      main_left3 := ''; 
+      main_right1 := '';
+      main_right2 := '';
+      main_right3 := '';
+	 
+      -- по всем колонкам каждой таблицы
+      FOR currentColumn IN select c.column_name as name, k.ordinal_position as pk from information_schema.columns c left join information_schema.key_column_usage k on c.table_catalog = k.table_catalog and c.table_schema = k.table_schema and c.table_name = k.table_name and c.column_name = k.column_name and k.position_in_unique_constraint is null where lower(c.table_schema) = lower(mainSchema) and lower(c.table_name) = lower(currentTable.tableName) order by c.ordinal_position LOOP
+
+	  main_left1 := main_left1 || dlm1 || currentColumn.name;
+	  
+	  -- позиция колонки в primary key
+	  if (currentColumn.pk > 0) then
+	     main_left2 := main_left2 || dlm1 || currentColumn.name || ' = NEW.' || currentColumn.name;
+		
+             main_right1 := main_right1 || dlm1 || 'NEW.' || currentColumn.name;
+	     main_right2 := main_right2 || dlm2 || currentColumn.name || ' = OLD.' || currentColumn.name;
+	     main_right3 := main_right3 || dlm2 || currentColumn.name || ' = OLD.' || currentColumn.name;
+	     dlm2 := ' and ';
+	  else
+	     -- поле для изоляции пользователей
+	     if (lower(currentColumn.name) = lower(usrContext)) then 
+		main_right1 := main_right1 || dlm1 || ' null';
+                dlm2 := ' and ';
+	     else
+		main_left2 := main_left2 || dlm1 || currentColumn.name || ' = NEW.' || currentColumn.name;
+		main_right1 := main_right1 || dlm1 || 'NEW.' || currentColumn.name;
+	     end if;
+	  end if;
+	  dlm1 := ',';
+       END LOOP;  
+
+      -- для схемы администратора без удаленных записей(конец)
+
+
+
+
+      
+
       -- по всем имеющимся схемам или по одной заданной
       FOR currentSchema in SELECT DISTINCT USR_CONTEXT FROM MTD_USERS WHERE aSchemaName is null OR aSchemaName = '' UNION SELECT aSchemaName WHERE aSchemaName > '' LOOP
 	  currentSchema := lower(currentSchema);
-          -- создать view
-          sqlLine := 'CREATE OR REPLACE VIEW ' || currentSchema || '.' || currentTable.tableName || ' AS SELECT * FROM  ' || mainSchema || '.' || currentTable.tableName;
-          if (currentTable.typ = 2) then
-             sqlLine := sqlLine || ' WHERE ' || usrContext || ' = ''' || currentSchema || ''' ';
-             if (ldel_name <> '') then
-                sqlLine := sqlLine || ' AND ' || ldel_name || ' is null';   
-             end if;
-          else
+
+          -- отдельно отработать схему для админа без удаленных записей
+          if (currentSchema = replicate_adminSchemaName()) then
+             -- создать view
+             sqlLine := 'CREATE OR REPLACE VIEW ' || currentSchema || '.' || currentTable.tableName || ' AS SELECT * FROM  ' || mainSchema || '.' || currentTable.tableName;
              if (ldel_name <> '') then
                 sqlLine := sqlLine || ' WHERE ' || ldel_name || ' is null';   
              end if;
-          end if;
-          sqlId := nextval('replicate_actions_sqls_seq');  
-          INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
-          BEGIN
-             EXECUTE sqlLine;
-             -- результат sql-команды
-             update replicate_actions_sqls set error_code = 0 where id = sqlId;
-          EXCEPTION WHEN OTHERS THEN
-             cntError := cntError + 1;
-             -- результат sql-команды
-             update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
-          END;
+             sqlId := nextval('replicate_actions_sqls_seq');  
+             INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+             BEGIN
+                EXECUTE sqlLine;
+                -- результат sql-команды
+                update replicate_actions_sqls set error_code = 0 where id = sqlId;
+             EXCEPTION WHEN OTHERS THEN
+                cntError := cntError + 1;
+                -- результат sql-команды
+                update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+             END;
    
-          if (currentTable.typ IN (1,2)) then   
-             -- read/write
-             sqlLine1 := 'CREATE OR REPLACE RULE ' || currentTable.tableName || '_ins AS ON INSERT TO ' || currentSchema || '.' || currentTable.tableName || ' DO INSTEAD INSERT INTO '|| mainSchema || '.' || currentTable.tableName;
-             sqlLine2 := 'CREATE OR REPLACE RULE ' || currentTable.tableName || '_upd AS ON UPDATE TO ' || currentSchema || '.' || currentTable.tableName || ' DO INSTEAD UPDATE '|| mainSchema || '.' || currentTable.tableName;
-             sqlLine3 := 'CREATE OR REPLACE RULE ' || currentTable.tableName || '_del AS ON DELETE TO ' || currentSchema || '.' || currentTable.tableName || ' DO INSTEAD DELETE FROM '|| mainSchema || '.' || currentTable.tableName;
+             -- create all rules
+             sqlLine1 = 'CREATE OR REPLACE RULE ' || currentTable.tableName || '_ins AS ON INSERT TO ' || currentSchema || '.' || currentTable.tableName || ' DO INSTEAD INSERT INTO '|| mainSchema || '.' || currentTable.tableName;
+             sqlLine2 = 'CREATE OR REPLACE RULE ' || currentTable.tableName || '_upd AS ON UPDATE TO ' || currentSchema || '.' || currentTable.tableName || ' DO INSTEAD UPDATE '|| mainSchema || '.' || currentTable.tableName;
+             sqlLine3 = 'CREATE OR REPLACE RULE ' || currentTable.tableName || '_del AS ON DELETE TO ' || currentSchema || '.' || currentTable.tableName || ' DO INSTEAD DELETE FROM '|| mainSchema || '.' || currentTable.tableName;
 
-             sqlLine1 := sqlLine1 || '(' || replace(left1,' current_schema() ', ' '''|| currentSchema || ''' ') || ') VALUES ('|| replace(right1,' current_schema() ', ' '''|| currentSchema || ''' ') || ')'; 
-             sqlLine2 := sqlLine2 || ' SET ' || replace(left2,' current_schema() ', ' '''|| currentSchema || ''' ') || ' WHERE '|| replace(right2,' current_schema() ', ' '''|| currentSchema || ''' '); 
-             sqlLine3 := sqlLine3 || ' WHERE '|| replace(right3,' current_schema() ', ' '''|| currentSchema || ''' '); 
+             sqlLine1 = sqlLine1 || '(' || main_left1 || ') VALUES ('|| main_right1 || ')'; 
+             sqlLine2 = sqlLine2 || ' SET ' || main_left2; 
+             if (main_right2 <> '') then
+                sqlLine2 = sqlLine2 || ' WHERE '|| main_right2; 
+             end if;
+             if (main_right3 <> '') then
+                sqlLine3 = sqlLine3 || ' WHERE '|| main_right3; 
+             end if;
              
+             -- создать правило на insert
+             sqlId := nextval('replicate_actions_sqls_seq');  
+             INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, substr(sqlLine1,1,4000));
+             BEGIN
+                EXECUTE sqlLine1;
+                -- результат sql-команды
+                update replicate_actions_sqls set error_code = 0 where id = sqlId;
+             EXCEPTION WHEN OTHERS THEN
+                cntError := cntError + 1;
+                -- результат sql-команды
+                update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+             END;
+
+             -- создать правило на update
+             sqlId := nextval('replicate_actions_sqls_seq');  
+             INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, substr(sqlLine2,1,4000));
+             BEGIN
+                EXECUTE sqlLine2;
+                -- результат sql-команды
+                update replicate_actions_sqls set error_code = 0 where id = sqlId;
+             EXCEPTION WHEN OTHERS THEN
+                cntError := cntError + 1;
+                -- результат sql-команды
+                update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+             END;
+
+             -- создать правило на delete
+             sqlId := nextval('replicate_actions_sqls_seq');  
+             INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, substr(sqlLine3,1,4000));
+             BEGIN
+                EXECUTE sqlLine3;
+                -- результат sql-команды
+                update replicate_actions_sqls set error_code = 0 where id = sqlId;
+             EXCEPTION WHEN OTHERS THEN
+                cntError := cntError + 1;
+                -- результат sql-команды
+                update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+             END;
+
+          else -- далее все остальные схемы
+             -- создать view
+             sqlLine := 'CREATE OR REPLACE VIEW ' || currentSchema || '.' || currentTable.tableName || ' AS SELECT * FROM  ' || mainSchema || '.' || currentTable.tableName;
+             if (currentTable.typ = 2) then
+                sqlLine := sqlLine || ' WHERE ' || usrContext || ' = ''' || currentSchema || ''' ';
+                if (ldel_name <> '') then
+                   sqlLine := sqlLine || ' AND ' || ldel_name || ' is null';   
+                end if;
+             else
+                if (ldel_name <> '') then
+                   sqlLine := sqlLine || ' WHERE ' || ldel_name || ' is null';   
+                end if;
+             end if;
+             sqlId := nextval('replicate_actions_sqls_seq');  
+             INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
+             BEGIN
+                EXECUTE sqlLine;
+                -- результат sql-команды
+                update replicate_actions_sqls set error_code = 0 where id = sqlId;
+             EXCEPTION WHEN OTHERS THEN
+                cntError := cntError + 1;
+                -- результат sql-команды
+                update replicate_actions_sqls set error_code = -1, error_message = substr(SQLSTATE || ': ' || SQLERRM,1,4000) where id = sqlId;
+             END;
+   
+             if (currentTable.typ IN (1,2)) then   
+                -- read/write
+                sqlLine1 := 'CREATE OR REPLACE RULE ' || currentTable.tableName || '_ins AS ON INSERT TO ' || currentSchema || '.' || currentTable.tableName || ' DO INSTEAD INSERT INTO '|| mainSchema || '.' || currentTable.tableName;
+                sqlLine2 := 'CREATE OR REPLACE RULE ' || currentTable.tableName || '_upd AS ON UPDATE TO ' || currentSchema || '.' || currentTable.tableName || ' DO INSTEAD UPDATE '|| mainSchema || '.' || currentTable.tableName;
+                sqlLine3 := 'CREATE OR REPLACE RULE ' || currentTable.tableName || '_del AS ON DELETE TO ' || currentSchema || '.' || currentTable.tableName || ' DO INSTEAD DELETE FROM '|| mainSchema || '.' || currentTable.tableName;
+
+                sqlLine1 := sqlLine1 || '(' || replace(left1,' current_schema() ', ' '''|| currentSchema || ''' ') || ') VALUES ('|| replace(right1,' current_schema() ', ' '''|| currentSchema || ''' ') || ')'; 
+                sqlLine2 := sqlLine2 || ' SET ' || replace(left2,' current_schema() ', ' '''|| currentSchema || ''' ') || ' WHERE '|| replace(right2,' current_schema() ', ' '''|| currentSchema || ''' '); 
+                sqlLine3 := sqlLine3 || ' WHERE '|| replace(right3,' current_schema() ', ' '''|| currentSchema || ''' '); 
+             else
+                -- read-only
+                sqlLine1 := 'CREATE OR REPLACE RULE ' || currentTable.tableName || '_ins AS ON INSERT TO ' || currentSchema || '.' || currentTable.tableName || ' DO INSTEAD NOTHING ';
+                sqlLine2 := 'CREATE OR REPLACE RULE ' || currentTable.tableName || '_upd AS ON UPDATE TO ' || currentSchema || '.' || currentTable.tableName || ' DO INSTEAD NOTHING ';
+                sqlLine3 := 'CREATE OR REPLACE RULE ' || currentTable.tableName || '_del AS ON DELETE TO ' || currentSchema || '.' || currentTable.tableName || ' DO INSTEAD NOTHING ';
+             end if;
              -- создать правило на insert
              sqlId := nextval('replicate_actions_sqls_seq');  
              INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, substr(sqlLine1,1,4000));
@@ -287,7 +417,6 @@ BEGIN
    RETURN cntError;
 END;
 $$ LANGUAGE plpgsql;
-
 ------------------------------------------------------------------11
 
 

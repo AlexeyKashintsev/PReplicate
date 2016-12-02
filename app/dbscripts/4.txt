@@ -1,9 +1,11 @@
 alter table replicate_views add fdel_status boolean;
+COMMENT ON COLUMN replicate_views.fdel_status IS 'Разрешение физического удаления записей с непустыми полями _ddel';
+
 -----------------------------------------------------
-CREATE OR REPLACE FUNCTION ldel_columnName() RETURNS varchar AS $$
+CREATE OR REPLACE FUNCTION ldel_columnName(aTableName character varying) RETURNS varchar AS $$
 BEGIN
    -- поле-признак удаления записи
-   RETURN 'ddel';
+   RETURN lower(aTableName) || '_ddel';
 END;
 $$ LANGUAGE plpgsql;
 ----------------------------------------------------
@@ -31,11 +33,13 @@ DECLARE
    actionId integer;
    sqlId integer;
    functionName varchar(40) default 'ldel_addColumn()';
-   columnForDelete varchar(40) default ldel_columnName();
+   columnForDelete varchar(200);
 
    schemaName text;
    tableNames text[];
    i integer;
+   eol	varchar(10) := chr(13)||chr(10);
+
 BEGIN
    /*-- log операций */
    if (actionCode is null or actionCode = 0) then
@@ -50,9 +54,9 @@ BEGIN
    end if;
 
    if (aSchemaName is NULL or aSchemaName = '') then
-      schemaName = current_schema();
+      schemaName := current_schema();
    else
-      schemaName = aSchemaName;
+      schemaName := aSchemaName;
    end if;
 
    if (aTableName is NULL or aTableName = '') then
@@ -60,13 +64,16 @@ BEGIN
          select array(select tablename::text from REPLICATE_VIEWS) into tableNames;
       end if;
    else 
-      tableNames[1] = aTableName;
+      tableNames[1] := aTableName;
    end if;
 
    /*-- по всем имеющимся таблицам или по одной заданной */
    if (array_length(tableNames,1) > 0) then
       for i in 1..array_length(tableNames,1) loop
-         sqlLine = 'alter table ' || schemaName || '.' || tableNames[i] || ' add ' || columnForDelete || ' timestamp';
+         columnForDelete := ldel_columnName(tableNames[i]);
+         sqlLine = 'alter table ' || schemaName || '.' || tableNames[i] || ' add ' || columnForDelete || ' timestamp;' || eol;
+         sqlLine = sqlLine || 'COMMENT ON COLUMN ' || schemaName || '.' || tableNames[i] || '.' || columnForDelete || ' IS ''Дата логического удаления записи'';';
+         
          sqlId := nextval('replicate_actions_sqls_seq');  
          INSERT INTO replicate_actions_sqls (id, action_id, functionname, sqltext) values (sqlId, actionId, functionName, sqlLine);
          BEGIN
@@ -116,7 +123,7 @@ DECLARE
    actionId integer;
    sqlId integer;
    functionName varchar(40) default 'ldel_createFunction()';
-   columnForDelete varchar(40) default ldel_columnName();
+   columnForDelete varchar(200);
    functionNamePreffix varchar(40) default 'fld_';
 
    schemaName text;
@@ -161,7 +168,9 @@ BEGIN
          AND n.nspname = schemaName and lower(ct.relname) = lower(tableNames[i])),' and ') into whereStr;
 
          if (whereStr is not null and whereStr <> '')  then 
-         
+
+            columnForDelete = ldel_columnName(tableNames[i]);
+            
             sqlLine = 'CREATE OR REPLACE FUNCTION ' || schemaName || '.' || functionNamePreffix || tableNames[i] || '() RETURNS TRIGGER AS $$' || eol;
             sqlline = sqlLine || 'declare' || eol;
             sqlline = sqlLine || '   st boolean;' || eol;
