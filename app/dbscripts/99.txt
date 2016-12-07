@@ -1,112 +1,148 @@
 CREATE OR REPLACE FUNCTION tk_admin.replicate_getActionId() RETURNS numeric AS $$
+DECLARE
+   ret numeric;
 BEGIN
    SET search_path TO transcard;
-   RETURN replicate_getActionId();
+   ret := replicate_getActionId();
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql;
 
 
 ---------------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION tk_admin.replicate_mainSchema() RETURNS varchar AS $$
+DECLARE
+   ret text;
 BEGIN
    SET search_path TO transcard;
-   RETURN replicate_mainSchema();
+   ret := replicate_mainSchema();
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql;
 
 ---------------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION tk_admin.replicate_columnContext() RETURNS varchar AS $$
+DECLARE
+   ret text;
 BEGIN
    SET search_path TO transcard;
-   RETURN replicate_columnContext();
+   ret := replicate_columnContext();
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql;
 
 ---------------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION tk_admin.replicate_indexPostFix() RETURNS varchar AS $$
+DECLARE
+   ret text;
 BEGIN
    SET search_path TO transcard;
-   RETURN replicate_indexPostFix();
+   ret := replicate_indexPostFix();
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql;
 
 ---------------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION tk_admin.replicate_prefixSchemaName() RETURNS varchar AS $$
+DECLARE
+   ret text;
 BEGIN
    SET search_path TO transcard;
-   RETURN replicate_prefixSchemaName();
+   ret := replicate_prefixSchemaName();
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql;
 
 ---------------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION tk_admin.replicate_generateSchemaName() RETURNS VARCHAR AS $$
+DECLARE
+   ret text;
 BEGIN
    SET search_path TO transcard;
-   RETURN replicate_generateSchemaName();
+   ret := replicate_generateSchemaName();
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql;
 
 ---------------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION tk_admin.replicate_adminSchemaName() RETURNS varchar AS $$
+DECLARE
+   ret text;
 BEGIN
    SET search_path TO transcard;
-   RETURN replicate_adminSchemaName();
+   ret := replicate_adminSchemaName();
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql;
 
 ---------------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION tk_admin.replicate_createSchema(platypusUserName in varchar,schemaName in varchar, actionCode in numeric default null) RETURNS numeric AS $$
+DECLARE
+   ret numeric;
 BEGIN
    SET search_path TO transcard;
-   RETURN replicate_createSchema(platypusUserName, schemaName, actionCode);
+   ret := replicate_createSchema(platypusUserName, schemaName, actionCode);
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql;
 
 ---------------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION tk_admin.replicate_createView(aPlatypusUserName in varchar,aSchemaName in varchar, aTableName in varchar, actionCode in numeric default null ) RETURNS numeric AS $$
+DECLARE
+   ret numeric;
 BEGIN
    SET search_path TO transcard;
-   RETURN replicate_createView(aPlatypusUserName, aSchemaName, aTableName, actionCode);
+   ret := replicate_createView(aPlatypusUserName, aSchemaName, aTableName, actionCode);
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql;
 ------------------------------------------------------------------
 
 
 CREATE OR REPLACE FUNCTION tk_admin.replicate_createSequence(aPlatypusUserName in varchar,aSchemaName in varchar, aSequenceName in varchar, actionCode in numeric default null ) RETURNS numeric AS $$
+DECLARE
+   ret numeric;
 BEGIN
    SET search_path TO transcard;
-   RETURN replicate_createSequence(aPlatypusUserName, aSchemaName, aSequenceName, actionCode);
+   ret := replicate_createSequence(aPlatypusUserName, aSchemaName, aSequenceName, actionCode);
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql;
 
 ------------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION tk_admin.replicate_dropSchema(platypusUserName in varchar,schemaName in varchar, actionCode in numeric default null) RETURNS numeric AS $$
+DECLARE
+   ret numeric;
 BEGIN
    SET search_path TO transcard;
-   RETURN replicate_dropSchema(platypusUserName, schemaName, actionCode);
+   ret := replicate_dropSchema(platypusUserName, schemaName, actionCode);
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql;
 
 
 --------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION tk_admin.replicate_dropView(aPlatypusUserName in varchar,aSchemaName in varchar, aTableName in varchar, actionCode in numeric default null) RETURNS numeric AS $$
+DECLARE
+   ret numeric;
 BEGIN
    SET search_path TO transcard;
-   RETURN replicate_dropView(aPlatypusUserName, aSchemaName, aTableName, actionCode);
+   ret := replicate_dropView(aPlatypusUserName, aSchemaName, aTableName, actionCode);
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -114,87 +150,109 @@ $$ LANGUAGE plpgsql;
 --------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION tk_admin.replicate_dropSequence(aPlatypusUserName in varchar,aSchemaName in varchar, aSequenceName in varchar, actionCode in numeric default null ) RETURNS numeric AS $$
+DECLARE
+   ret numeric;
 BEGIN
    SET search_path TO transcard;
-   RETURN replicate_dropSequence(aPlatypusUserName, aSchemaName, aSequenceName, actionCode);
+   ret := replicate_dropSequence(aPlatypusUserName, aSchemaName, aSequenceName, actionCode);
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql;
 
 ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION tk_admin.replicate_addViewDefine(aPlatypusUserName in varchar,aTableName in varchar, aTypeView in numeric, needToRecreateViews in numeric, actionCode in numeric default null ) RETURNS numeric AS $$
+DECLARE
+   ret numeric;
 BEGIN
    SET search_path TO transcard;
-   RETURN replicate_addViewDefine(aPlatypusUserName, aTableName, aTypeView, needToRecreateViews, actionCode);
+   ret := replicate_addViewDefine(aPlatypusUserName, aTableName, aTypeView, needToRecreateViews, actionCode);
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql;
 
 
 ------------------------------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION tk_admin.replicate_removeViewDefine(platypusUserName in varchar,aTableName in varchar, needToDropViews in double precision, actionCode in double precision default null ) RETURNS numeric AS $$
+DECLARE
+   ret numeric;
 BEGIN
    SET search_path TO transcard;
-   RETURN replicate_removeViewDefine(platypusUserName, aTableName, needToDropViews, actionCode);
+   ret := replicate_removeViewDefine(platypusUserName, aTableName, needToDropViews, actionCode);
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql;
 
 
 -----------------------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION tk_admin.ldel_columnName(aTableName character varying) RETURNS varchar AS $$
+DECLARE
+   ret text;
 BEGIN
    SET search_path TO transcard;
-   RETURN ldel_columnName(aTableName);
+   ret := ldel_columnName(aTableName);
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql;
 ----------------------------------------------------
 CREATE OR REPLACE FUNCTION tk_admin.ldel_addColumn(aPlatypusUsername character varying, aSchemaName character varying DEFAULT NULL::character varying, aTableName character varying DEFAULT NULL::character varying, actionCode double precision DEFAULT NULL::double precision)  RETURNS numeric AS $$
+DECLARE
+   ret numeric;
 BEGIN
    SET search_path TO transcard;
-   RETURN ldel_addColumn(aPlatypusUsername, aSchemaName, aTableName, actionCode);
+   ret := ldel_addColumn(aPlatypusUsername, aSchemaName, aTableName, actionCode);
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql VOLATILE;
 
 -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION tk_admin.ldel_createFunction(aPlatypusUsername character varying, aSchemaname character varying DEFAULT NULL::character varying, aTablename character varying DEFAULT NULL::character varying, actionCode double precision DEFAULT NULL::double precision) RETURNS numeric AS $$
+DECLARE
+   ret numeric;
 BEGIN
    SET search_path TO transcard;
-   RETURN ldel_createFunction(aPlatypusUsername, aSchemaname, aTablename, actionCode);
+   ret := ldel_createFunction(aPlatypusUsername, aSchemaname, aTablename, actionCode);
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$  LANGUAGE plpgsql VOLATILE;
 
 ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION tk_admin.ldel_createTrigger(aPlatypusUsername character varying, aSchemaname character varying DEFAULT NULL::character varying, aTablename character varying DEFAULT NULL::character varying, actionCode double precision DEFAULT NULL::double precision) RETURNS numeric AS $$
+DECLARE
+   ret numeric;
 BEGIN
    SET search_path TO transcard;
-   RETURN ldel_createTrigger(aPlatypusUsername, aSchemaname, aTablename, actionCode);
+   ret := ldel_createTrigger(aPlatypusUsername, aSchemaname, aTablename, actionCode);
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql VOLATILE;
 
 ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION tk_admin.ldel_dropFunction(aPlatypusUsername character varying, aSchemaname character varying DEFAULT NULL::character varying, aTablename character varying DEFAULT NULL::character varying, actionCode double precision DEFAULT NULL::double precision) RETURNS numeric AS $$
+DECLARE
+   ret numeric;
 BEGIN
    SET search_path TO transcard;
-   RETURN ldel_dropFunction(aPlatypusUsername, aSchemaname, aTablename, actionCode);
+   ret := ldel_dropFunction(aPlatypusUsername, aSchemaname, aTablename, actionCode);
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql VOLATILE;
 
 ---------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION tk_admin.ldel_dropTrigger(aPlatypusUsername character varying, aSchemaname character varying DEFAULT NULL::character varying, aTablename character varying DEFAULT NULL::character varying, actionCode double precision DEFAULT NULL::double precision) RETURNS numeric AS $$
+DECLARE
+   ret numeric;
 BEGIN
    SET search_path TO transcard;
-   RETURN ldel_dropTrigger(aPlatypusUsername, aSchemaname, aTablename, actionCode);
+   ret := ldel_dropTrigger(aPlatypusUsername, aSchemaname, aTablename, actionCode);
    SET search_path TO tk_admin;    
+   RETURN ret;
 END;
 $$ LANGUAGE plpgsql VOLATILE;
-
-
-
-
-
