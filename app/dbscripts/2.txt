@@ -32,7 +32,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION replicate_prefixSchemaName() RETURNS varchar AS $$
 BEGIN
    -- имя схем для генерации
-   RETURN 'tk'; 
+   RETURN 'tk_'; 
 END;
 $$ LANGUAGE plpgsql;
 
