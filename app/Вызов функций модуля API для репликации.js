@@ -92,5 +92,120 @@ define('ReplicatesAPIView', ['orm', 'forms', 'ui', 'ReplicationAPI'], function (
             });
         };
         
+        form.button.onActionPerformed = function() {
+            var tabs = ["mtd_rules"
+                , "comp_contragent"
+                , "em_emitent"
+                , "term_company"
+                , "tran_persons"
+                , "tk_card"
+                , "fl_person"
+                , "tran_smena"
+                , "mtd_users"
+                , "mtk_shots"
+                , "tran_company"
+                ];
+                
+//            var tabs = ["bill_operations_status"
+//            , "events"
+//            , "bill_operations"
+//            , "tran_jobs"
+//            , "replicate_sequences"
+//            , "disc_active"
+//            , "ag_agents"
+//            , "disc_services"
+//            , "tk_bill_services"
+//            , "ag_agent_terminals"
+//            , "dummy_table"
+//            , "tran_type"
+//            , "replicate_actions_sqls"
+//            , "tran_dispatches"
+//            , "corp_company"
+//            , "corp_comp_tk"
+//            , "soc_fl"
+//            , "disc_type"
+//            , "bill_services"
+//            , "fl_cardholder"
+//            , "bill_cost"
+//            , "term_terminal"
+//            , "tk_timetable_types"
+//            , "edu_fl"
+//            , "term_settings"
+//            , "adm_mod_rules"
+//            , "disc_tktypes"
+//            , "all_rules"
+//            , "tran_round_crs"
+//            , "adm_modules"
+//            , "replicate_actions"
+//            , "tk_fill_operations"
+//            , "disc_discounts"
+//            , "mtd_entities"
+//            , "tk_type"
+//            , "term_aval_settings"
+//            , "tk_stop_list"
+//            , "mtd_groups"
+//            , "term_sync_list"
+//            , "usr_groups_rules"
+//            , "bill_balance"
+//            , "replicate_views"
+//            , "adm_import_sources"
+//            , "mtk_labels"
+//            , "tk_payment"
+//            , "tk_activity_route"
+//            , "tk_companies"
+//            , "misc_hday_marks"
+//            , "usr_rules"
+//            , "bill_services_connect"
+//            , "term_sync_types"
+//            , "tran_stops_routes"
+//            , "usr_groups"
+//            , "tran_routes"
+//            , "misc_data_types"
+//            , "tk_activity"
+//            , "tran_company_routes"
+//            , "dummytable"
+//            , "bill_accounts"
+//            , "edu_schools"
+//            , "tk_timetable"
+//            , "tk_type_discounts"
+//            , "tran_round"
+//            , "bill_services_accounts"
+//            , "dummy"
+//            , "tk_trans"
+//            , "bill_operations_type"
+//            , "tran_crs_offences"
+//            , "disc_rules"
+//            , "tran_stops"
+//            , "ag_terminals"
+//            , "term_encrypt_keys"
+//            , "bill_services_types"
+//            , "tran_disp_routes"
+//            , "tran_routes_cost"
+//            , "tk_routes"
+//            , "tran_zones"
+//            , "usr_users_groups"
+//            , "event_types"
+//            , "soc_types"
+//            , "fl_list_type"
+//            ];
+            
+            var typ = 0;
+            if (form.rbAllRW.selected) {
+                typ = 1;
+            } else if (form.rbOwnerRW.selected) {
+                typ = 2;
+            }
+            
+           function ggg() {
+               var tab = tabs.pop();
+               if (tab)
+                replicateModule.addViewDefine(tab, typ, (form.chkRecreateAll.selected ? 1 : 0), function (aRes) {
+                     ggg();
+                 });                       
+           }
+
+           ggg();
+        };
+        
     };
 });

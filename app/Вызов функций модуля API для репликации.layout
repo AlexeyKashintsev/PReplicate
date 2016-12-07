@@ -94,6 +94,9 @@
   <Button cursor="0" name="btnAddDefine" parent="panel3" prefHeight="25px" prefWidth="264px" text="Добавить/заменить описание">
     <AnchorsPaneConstraints bottom="18px" height="25px" left="12px" width="264px"/>
   </Button>
+  <Button cursor="0" name="button" parent="panel3" prefHeight="30px" prefWidth="100px" text="button">
+    <AnchorsPaneConstraints bottom="49px" height="30px" right="120px" width="100px"/>
+  </Button>
   <AnchorsPane cursor="0" name="panel4" parent="tabbedPane" prefHeight="339px" prefWidth="860px" visible="false">
     <TabbedPaneConstraints tabTitle="Удалить описание представления" tabToolTip=""/>
   </AnchorsPane>
